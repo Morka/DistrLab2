@@ -19,6 +19,7 @@ import java.util.concurrent.ExecutorService;
 import util.Config;
 import cli.Command;
 import cli.Shell;
+import message.Request;
 import message.Response;
 import message.request.BuyRequest;
 import message.request.CreditsRequest;
@@ -83,18 +84,18 @@ public class ClientCli implements IClientCli
 			e.printStackTrace();
 		}
 	}
-
-	@Override
-	@Command
-	public LoginResponse login(String username, String password)
-			throws IOException
-			{
-		LoginRequest request = new LoginRequest(username, password);
-		objectOutput.writeObject(request);
-		objectOutput.flush();
+	
+	private void sendToServer(Request request) throws IOException{
+		//TODO: Does not throw a customized Exception.
+		//The encryption code can be put here later on.
+		this.objectOutput.writeObject(request);
+		this.objectOutput.flush();
+	}
+	
+	private Response receiveFromServer() throws IOException{
 		try
 		{
-			LoginResponse response = (LoginResponse)objectInput.readObject();
+			Response response = (Response)this.objectInput.readObject();
 			return response;
 		}
 		catch(EOFException eof)
@@ -110,38 +111,32 @@ public class ClientCli implements IClientCli
 		catch (ClassNotFoundException e)
 		{
 			e.printStackTrace();
-		}
-		
+		} 
 		return null;
-			}
+	}
+
+	@Override
+	@Command
+	public LoginResponse login(String username, String password)
+			throws IOException
+			{
+		LoginRequest request = new LoginRequest(username, password);
+		this.sendToServer(request);
+		
+		return (LoginResponse)this.receiveFromServer();
+		
+	}
 
 	@Override
 	@Command
 	public Response credits() throws IOException
 	{
 		CreditsRequest request = new CreditsRequest();
-		objectOutput.writeObject(request);
-		objectOutput.flush();
-		try
-		{
-			return (Response)objectInput.readObject();
-		} 
-		catch(EOFException eof)
-		{
-			shell.writeLine("Socket closed unexpectedly");
-			exit();
-		}
-		catch(SocketException se)
-		{
-			shell.writeLine("Socket closed unexpectedly.");
-			exit();
-		}
-		catch (ClassNotFoundException e)
-		{
-			e.printStackTrace();
-		}
-
-		return null;
+		
+		this.sendToServer(request);
+		
+		return this.receiveFromServer();
+		
 	}
 
 	@Override
@@ -149,27 +144,11 @@ public class ClientCli implements IClientCli
 	public Response buy(long credits) throws IOException
 	{
 		BuyRequest request = new BuyRequest(credits);
-		objectOutput.writeObject(request);
-		objectOutput.flush();
-		try
-		{
-			return (Response)objectInput.readObject();
-		} 
-		catch(EOFException eof)
-		{
-			shell.writeLine("Socket closed unexpectedly");
-			exit();
-		}
-		catch(SocketException se)
-		{
-			shell.writeLine("Socket closed unexpectedly.");
-			exit();
-		}
-		catch (ClassNotFoundException e)
-		{
-			e.printStackTrace();
-		}
-		return null;
+		
+		this.sendToServer(request);
+		
+		return this.receiveFromServer();
+		
 	}
 
 
@@ -178,27 +157,11 @@ public class ClientCli implements IClientCli
 	public Response list() throws IOException
 	{
 		ListRequest request = new ListRequest();
-		objectOutput.writeObject(request);
-		objectOutput.flush();
-		try
-		{
-			return (Response)objectInput.readObject();
-		} 
-		catch(EOFException eof)
-		{
-			shell.writeLine("Socket closed unexpectedly");
-			exit();
-		}
-		catch(SocketException se)
-		{
-			shell.writeLine("Socket closed unexpectedly.");
-			exit();
-		}
-		catch (ClassNotFoundException e)
-		{
-			e.printStackTrace();
-		}
-		return null;
+		
+		this.sendToServer(request);
+		
+		return this.receiveFromServer();
+		
 	}
 
 
@@ -213,8 +176,9 @@ public class ClientCli implements IClientCli
 			f.delete();
 		}
 		DownloadTicketRequest request = new DownloadTicketRequest(filename);
-		objectOutput.writeObject(request);
-		objectOutput.flush();
+		
+		this.sendToServer(request);
+		
 		try
 		{
 			Response r = (Response) objectInput.readObject();
@@ -299,8 +263,9 @@ public class ClientCli implements IClientCli
 				String text = sb.toString();
 
 				UploadRequest request = new UploadRequest(filename, 0, text.getBytes());
-				objectOutput.writeObject(request);
-				objectOutput.flush();
+				
+				this.sendToServer(request);
+					
 				try
 				{
 					return (MessageResponse)objectInput.readObject();
@@ -338,27 +303,11 @@ public class ClientCli implements IClientCli
 	public MessageResponse logout() throws IOException
 	{
 		LogoutRequest request = new LogoutRequest();
-		try
-		{
-			objectOutput.writeObject(request);
-			objectOutput.flush();
-			return (MessageResponse)objectInput.readObject();
-		} 
-		catch(EOFException eof)
-		{
-			shell.writeLine("Socket closed unexpectedly");
-			exit();
-		}
-		catch(SocketException se)
-		{
-			shell.writeLine("Socket closed unexpectedly");
-			exit();
-		}
-		catch (ClassNotFoundException e)
-		{
-			e.printStackTrace();
-		}
-		return null;
+	
+			this.sendToServer(request);
+			return (MessageResponse)this.receiveFromServer();
+
+		
 	}
 
 
