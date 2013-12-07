@@ -9,22 +9,17 @@ import java.io.OutputStream;
 import java.net.InetAddress;
 import java.net.Socket;
 import java.net.SocketException;
-import java.net.UnknownHostException;
 import java.util.ArrayList;
 import java.util.HashSet;
-import java.util.Iterator;
 import java.util.Map;
-import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicBoolean;
-
 import util.ChecksumUtils;
-
+import util.Config;
 import message.Request;
 import message.Response;
 import message.request.BuyRequest;
 import message.request.CreditsRequest;
-import message.request.DownloadFileRequest;
 import message.request.DownloadTicketRequest;
 import message.request.InfoRequest;
 import message.request.ListRequest;
@@ -40,6 +35,7 @@ import message.response.LoginResponse;
 import message.response.MessageResponse;
 import model.DownloadTicket;
 import model.FileServerInfo;
+import model.UserInfo;
 
 public class Proxy implements IProxy, Runnable
 {
@@ -50,11 +46,8 @@ public class Proxy implements IProxy, Runnable
 	private Socket clientSocket;
 	private String username;
 	private AtomicBoolean stop;
-
-	/*
-	 * username is the key, values (in that order) are password, credits, online status
-	 */
-	private ConcurrentHashMap<String, ArrayList<String>> users; 
+	
+	private ConcurrentHashMap<String, UserInfo> users; 
 
 	private ConcurrentHashMap<Integer, FileServerInfo> serverIdentifier;
 
@@ -63,10 +56,9 @@ public class Proxy implements IProxy, Runnable
 	public Proxy(Socket clientSocket, ConcurrentHashMap<String, ArrayList<String>> users, HashSet<String> files, ConcurrentHashMap<Integer, FileServerInfo> serverIdentifier, AtomicBoolean stop)
 	{
 		this.clientSocket = clientSocket;
-		this.users = users;
-		this.files = files;
+		this.users = UserData.getInstance().users;	
 		this.stop = stop;
-		this.serverIdentifier = serverIdentifier;
+		this.serverIdentifier = ServerData.getInstance().servers;
 		username = "";
 		try
 		{
@@ -91,11 +83,13 @@ public class Proxy implements IProxy, Runnable
 			{
 				if(users.containsKey(request.getUsername()))
 				{
-					if(users.get(request.getUsername()).get(0).equals(request.getPassword()))
+					Config config = new Config("user");
+					if(config.getString(request.getUsername()+".password").equals(request.getPassword()))
 					{
 						username = request.getUsername();
-						ArrayList<String> values = users.get(username);
-						values.set(2, "online");
+						UserInfo old = users.get(username);
+						UserInfo info = new UserInfo(username, old.getCredits(), true);
+						users.put(username, info);
 						return new LoginResponse(LoginResponse.Type.SUCCESS);
 					}
 					else
@@ -126,7 +120,7 @@ public class Proxy implements IProxy, Runnable
 		{
 			synchronized(users)
 			{
-				return new CreditsResponse(Long.valueOf(users.get(username).get(1)).longValue());
+				return new CreditsResponse(Long.valueOf(users.get(username).getCredits()));
 			}
 		}
 	}
@@ -142,9 +136,10 @@ public class Proxy implements IProxy, Runnable
 		{
 			synchronized(users)
 			{
-				Long newCredits = Long.valueOf(users.get(username).get(1)).longValue() + credits.getCredits();
-				ArrayList<String> values = users.get(username);
-				values.set(1, Long.toString(newCredits));
+				Long newCredits = users.get(username).getCredits() + credits.getCredits();
+				UserInfo old = users.get(username);
+				UserInfo info = new UserInfo(username, newCredits, old.isOnline());
+				users.put(username, info);
 				return new BuyResponse(newCredits);
 			}
 		}
@@ -265,14 +260,15 @@ public class Proxy implements IProxy, Runnable
 						}
 						synchronized(users)
 						{
-							if (fileSize > Long.parseLong(users.get(username).get(1)))
+							if (fileSize > users.get(username).getCredits())
 							{
-								return new MessageResponse("The file requires "+String.valueOf(fileSize)+" credits to download, but you only have "+users.get(username).get(1));
+								return new MessageResponse("The file requires "+String.valueOf(fileSize)+" credits to download, but you only have "+users.get(username).getCredits());
 							}
 							String checksum = ChecksumUtils.generateChecksum(username, request.getFilename(), 0, fileSize);
 							DownloadTicket ticket = new DownloadTicket(username, request.getFilename(), checksum, address, port);
-							ArrayList<String> values = users.get(username);
-							values.set(1, String.valueOf(Long.parseLong(values.get(1))-fileSize));
+							UserInfo old = users.get(username);
+							UserInfo info = new UserInfo(username, old.getCredits()-fileSize, old.isOnline());
+							users.put(username, info);
 							serverIdentifier.put(port, new FileServerInfo(address, port, usage+fileSize, true));
 							return new DownloadTicketResponse(ticket);
 						}
@@ -319,8 +315,9 @@ public class Proxy implements IProxy, Runnable
 					}
 					synchronized(users)
 					{
-						ArrayList<String> values = users.get(username);
-						values.set(1, String.valueOf(Long.parseLong(values.get(1))+fileSize));
+						UserInfo old = users.get(username);
+						UserInfo info = new UserInfo(username, old.getCredits()+fileSize, old.isOnline());
+						users.put(username, info);
 					}
 					oos.close();
 					ois.close();
@@ -329,7 +326,7 @@ public class Proxy implements IProxy, Runnable
 				}
 				synchronized(users)
 				{
-					return new MessageResponse("Uploaded file to server, new Credits: "+users.get(username).get(1));
+					return new MessageResponse("Uploaded file to server, new Credits: "+users.get(username).getCredits());
 				}
 			}
 		}
@@ -348,8 +345,9 @@ public class Proxy implements IProxy, Runnable
 		{
 			synchronized(users)
 			{
-				ArrayList<String> values = users.get(username);
-				values.set(2, "offline");
+				UserInfo old = users.get(username);
+				UserInfo info = new UserInfo(username, old.getCredits(), false);
+				users.put(username, info);
 				return new MessageResponse("You were logged out");
 			}
 		}
@@ -426,8 +424,9 @@ public class Proxy implements IProxy, Runnable
 				{
 					if(!username.equals(""))
 					{
-						ArrayList<String> values = users.get(username);
-						values.set(2, "offline");
+						UserInfo old = users.get(username);
+						UserInfo info = new UserInfo(username, old.getCredits(), false);
+						users.put(username, info);
 					}
 				}
 				username = "";
