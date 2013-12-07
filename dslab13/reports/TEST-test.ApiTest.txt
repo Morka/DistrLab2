@@ -1,0 +1,18 @@
+Testsuite: test.ApiTest
+Tests run: 1, Failures: 0, Errors: 0, Time elapsed: 9,207 sec
+------------- Standard Output ---------------
+00_login_test.txt
+00:26:08.957		client> !login alice 12345
+00:26:08.969		client: !login success
+00:26:09.424		client> !credits
+00:26:09.427		client: !credits 200
+00:26:09.924		proxy> !users
+users
+00:26:10.000		proxy:
+00:26:10.000		bill 200 offline 
+00:26:10.000		alice 200 online 
+00:26:10.424		proxy> !exit
+00:26:10.424		proxy: Exiting...
+------------- ---------------- ---------------
+
+Testcase: test took 9,183 sec
