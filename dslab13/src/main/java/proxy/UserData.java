@@ -6,8 +6,13 @@ import model.UserInfo;
 
 public class UserData
 {
-	public static ConcurrentHashMap<String, UserInfo> users; 
+	public ConcurrentHashMap<String, UserInfo> users; 
 	private static UserData instance;
+	
+	private UserData()
+	{
+		users = new ConcurrentHashMap<String, UserInfo>();
+	}
 	
 	public static synchronized UserData getInstance() 
 	{

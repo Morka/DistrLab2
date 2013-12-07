@@ -6,8 +6,13 @@ import model.FileServerInfo;
 
 public class ServerData
 {
-	public static ConcurrentHashMap<Integer, FileServerInfo> servers; 
+	public ConcurrentHashMap<Integer, FileServerInfo> servers; 
 	private static ServerData instance;
+	
+	private ServerData()
+	{
+		servers = new ConcurrentHashMap<Integer, FileServerInfo>();
+	}
 	
 	public static synchronized ServerData getInstance()
 	{
