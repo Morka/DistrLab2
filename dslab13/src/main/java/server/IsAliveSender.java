@@ -27,7 +27,36 @@ public class IsAliveSender implements Runnable
 
 	@Override
 	public void run()
-	{
+ {
+		// Continuously sending the Proxy isAlive packages:
+		while (true) {
+			try {
+				Thread.sleep(this.isAlive);
+			} catch (InterruptedException e1) {
+				// Thread has been Interrupted.
+				System.out.println("File Server Datagram Thread has been broken off.");
+				return;
+			}
+
+			// Sends tcp Port of the file server to Proxy every isAlive Message.
+			ByteBuffer b = ByteBuffer.allocate(4);
+			b.putInt(tcpPort);
+			byte[] buffer = b.array();
+			try {
+				InetAddress address = InetAddress.getByName("localhost");
+				DatagramPacket packet = new DatagramPacket(buffer, buffer.length,address, this.proxyUdp);
+				socket.send(packet);
+			} catch (UnknownHostException e) {
+				System.err.println("Error: Host InetAdress is unknown. No Connection possible.");
+				socket.close();
+				return;
+			} catch (IOException e) {
+				System.err.println("Error: Sending is Alive Packages from this File Server did not work.");
+				socket.close();
+				return;
+			}
+		}
+		/*
 		init();
 		while(!stop.get())
 		{
@@ -54,6 +83,7 @@ public class IsAliveSender implements Runnable
 			}
 		}
 		socket.close();
+		*/
 	}
 	
 	private void init()
