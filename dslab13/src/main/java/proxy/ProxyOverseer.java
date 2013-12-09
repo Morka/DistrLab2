@@ -16,6 +16,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import model.FileServerInfo;
+import model.UserInfo;
 
 import cli.Shell;
 
@@ -35,16 +36,16 @@ public class ProxyOverseer implements Runnable
 	/*
 	 * username is the key, values (in that order) are password, credits, online status
 	 */
-	private ConcurrentHashMap<String, ArrayList<String>> users; 
+	private ConcurrentHashMap<String, UserInfo> users; 
 
 	private ConcurrentHashMap<Integer, FileServerInfo> serverIdentifier;
 
 	private HashSet<String> files;
 	
-	public ProxyOverseer(Config config, ServerSocket serverSocket, ConcurrentHashMap<String, ArrayList<String>> users, ConcurrentHashMap<Integer, FileServerInfo> serverIdentifier, AtomicBoolean stop)
+	public ProxyOverseer(Config config, ServerSocket serverSocket, ConcurrentHashMap<Integer, FileServerInfo> serverIdentifier, AtomicBoolean stop)
 	{
 		this.config = config;
-		this.users = users;
+		this.users = new ConcurrentHashMap<String, UserInfo>();
 		this.stop = stop;
 		this.serverSocket = serverSocket;
 		files = new HashSet<String>();
@@ -62,7 +63,7 @@ public class ProxyOverseer implements Runnable
 			try
 			{
 				Socket clientSocket = serverSocket.accept();
-				Proxy proxy = new Proxy(clientSocket, users, files, serverIdentifier, stop);
+				Proxy proxy = new Proxy(clientSocket, files, serverIdentifier, stop);
 				sockets.add(clientSocket);
 				pool.execute(proxy);
 			} 
@@ -107,12 +108,16 @@ public class ProxyOverseer implements Runnable
 				{
 					continue;
 				}
-				ArrayList<String> values = new ArrayList<String>();
+				/*ArrayList<String> values = new ArrayList<String>();
 				values.add(config.getString(userName + ".password"));
 				values.add(config.getString(userName + ".credits"));
-				values.add("offline");
-				users.put(userName, values);
+				values.add("offline");*/
+				Long credits = Long.valueOf(config.getString(userName + ".credits"));
+				UserInfo userinfo = new UserInfo(userName,credits, false);
+				//users.put(userName, values);
+				users.put(userName, userinfo);
 			}
+			UserData.getInstance().setUsers(users);
 			pool.execute(new FileServerListener(datagramSocket, timeout, checkPeriod, stop, files, serverIdentifier));
 		} 
 		catch (IOException e)

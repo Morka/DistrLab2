@@ -19,6 +19,7 @@ import util.MyConfig;
 import message.Response;
 import message.response.MessageResponse;
 import model.FileServerInfo;
+import model.UserInfo;
 import cli.Command;
 import cli.Shell;
 
@@ -35,14 +36,14 @@ public class ProxyCli implements IProxyCli
 	/*
 	 * username is the key, values (in that order) are password, credits, online status
 	 */
-	private ConcurrentHashMap<String, ArrayList<String>> users; 
+	//private ConcurrentHashMap<String, UserInfo> users; 
 
 	private ConcurrentHashMap<Integer, FileServerInfo> serverIdentifier;
 
 	public ProxyCli(Config config, Shell shell)
 	{
 		this.shell = shell;
-		users = new ConcurrentHashMap<String,ArrayList<String>>();
+		//users = new ConcurrentHashMap<String,UserInfo>();
 		serverIdentifier = new ConcurrentHashMap<Integer, FileServerInfo>();
 		try
 		{
@@ -52,7 +53,7 @@ public class ProxyCli implements IProxyCli
 		{
 			e.printStackTrace();
 		}
-		overseer = new ProxyOverseer(config, serverSocket, users, serverIdentifier, stop);
+		overseer = new ProxyOverseer(config, serverSocket, serverIdentifier, stop);
 		t = new Thread(overseer);
 		t.start();
 	}
@@ -81,16 +82,18 @@ public class ProxyCli implements IProxyCli
 	Response users() throws IOException
 	{
 		String text = "";
+		ConcurrentHashMap<String, UserInfo> users = UserData.getInstance().users;
 		synchronized(users)
 		{
-			for (Map.Entry<String, ArrayList<String>> entry : users.entrySet()) 
+			for (Map.Entry<String, UserInfo> entry : users.entrySet()) 
 			{
-				text += entry.getKey()+" ";
+				text += entry.getValue().toString()+"\n";
+				/*text += entry.getKey()+" ";
 				for (int i = 1; i < entry.getValue().size(); i++) // skips password
 				{
 					text += entry.getValue().get(i) + " ";
 				}
-				text += "\n";
+				text += "\n";*/
 			}
 		}
 		return new MessageResponse(text);

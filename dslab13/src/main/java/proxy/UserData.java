@@ -22,4 +22,8 @@ public class UserData
 	    }
 	    return instance;
 	}
+	
+	public synchronized void setUsers(ConcurrentHashMap<String, UserInfo> usersList) {
+		users = usersList;		
+	}
 }
