@@ -77,12 +77,10 @@ public class Proxy implements IProxy, Runnable
 	@Override
 	public LoginResponse login(LoginRequest request) throws IOException
 	{
-		System.out.println("Request: " + request);
 		if(username.equals(""))
 		{
 			synchronized(users)
 			{
-				System.out.println("Users: " + users);
 				if(users.containsKey(request.getUsername()))
 				{
 					Config config = new Config("user");
