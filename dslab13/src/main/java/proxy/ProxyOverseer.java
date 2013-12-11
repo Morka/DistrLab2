@@ -38,11 +38,9 @@ public class ProxyOverseer implements Runnable
 	 */
 	private ConcurrentHashMap<String, UserInfo> users; 
 
-	private ConcurrentHashMap<Integer, FileServerInfo> serverIdentifier;
-
 	private HashSet<String> files;
 	
-	public ProxyOverseer(Config config, ServerSocket serverSocket, ConcurrentHashMap<Integer, FileServerInfo> serverIdentifier, AtomicBoolean stop)
+	public ProxyOverseer(Config config, ServerSocket serverSocket, AtomicBoolean stop)
 	{
 		this.config = config;
 		this.users = new ConcurrentHashMap<String, UserInfo>();
@@ -50,7 +48,6 @@ public class ProxyOverseer implements Runnable
 		this.serverSocket = serverSocket;
 		files = new HashSet<String>();
 		pool = Executors.newFixedThreadPool(10);
-		this.serverIdentifier = serverIdentifier;
 	}
 	
 	@Override
@@ -63,7 +60,7 @@ public class ProxyOverseer implements Runnable
 			try
 			{
 				Socket clientSocket = serverSocket.accept();
-				Proxy proxy = new Proxy(clientSocket, files, serverIdentifier, stop);
+				Proxy proxy = new Proxy(clientSocket, stop);
 				sockets.add(clientSocket);
 				pool.execute(proxy);
 			} 
@@ -118,7 +115,7 @@ public class ProxyOverseer implements Runnable
 				users.put(userName, userinfo);
 			}
 			UserData.getInstance().setUsers(users);
-			pool.execute(new FileServerListener(datagramSocket, timeout, checkPeriod, stop, files, serverIdentifier));
+			pool.execute(new FileServerListener(datagramSocket, timeout, checkPeriod, stop));
 		} 
 		catch (IOException e)
 		{

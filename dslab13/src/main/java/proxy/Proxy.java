@@ -10,8 +10,18 @@ import java.net.InetAddress;
 import java.net.Socket;
 import java.net.SocketException;
 import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Comparator;
+import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Iterator;
+import java.util.LinkedHashMap;
+import java.util.LinkedList;
+import java.util.List;
 import java.util.Map;
+import java.util.Set;
+import java.util.SortedMap;
+import java.util.TreeMap;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicBoolean;
 import util.ChecksumUtils;
@@ -26,6 +36,7 @@ import message.request.ListRequest;
 import message.request.LoginRequest;
 import message.request.LogoutRequest;
 import message.request.UploadRequest;
+import message.request.VersionRequest;
 import message.response.BuyResponse;
 import message.response.CreditsResponse;
 import message.response.DownloadTicketResponse;
@@ -33,6 +44,7 @@ import message.response.InfoResponse;
 import message.response.ListResponse;
 import message.response.LoginResponse;
 import message.response.MessageResponse;
+import message.response.VersionResponse;
 import model.DownloadTicket;
 import model.FileServerInfo;
 import model.UserInfo;
@@ -46,14 +58,15 @@ public class Proxy implements IProxy, Runnable
 	private Socket clientSocket;
 	private String username;
 	private AtomicBoolean stop;
-	
+
+	private ConcurrentHashMap<Integer, FileServerInfo> readQuorum = null;
+	private ConcurrentHashMap<Integer, FileServerInfo> writeQuorum = null;
+
 	private ConcurrentHashMap<String, UserInfo> users; 
 
 	private ConcurrentHashMap<Integer, FileServerInfo> serverIdentifier;
 
-	private HashSet<String> files;
-
-	public Proxy(Socket clientSocket, HashSet<String> files, ConcurrentHashMap<Integer, FileServerInfo> serverIdentifier, AtomicBoolean stop)
+	public Proxy(Socket clientSocket, AtomicBoolean stop)
 	{
 		this.clientSocket = clientSocket;
 		this.users = UserData.getInstance().users;	
@@ -162,11 +175,12 @@ public class Proxy implements IProxy, Runnable
 				}
 				else
 				{
-					for(Map.Entry<Integer, FileServerInfo> entry: serverIdentifier.entrySet())
+					Set<String> files = new HashSet<String>();
+					for(FileServerInfo i: serverIdentifier.values())
 					{
-						if(entry.getValue().isOnline())
+						if(i.isOnline())
 						{
-							Socket socket = new Socket(entry.getValue().getAddress(), entry.getValue().getPort());
+							Socket socket = new Socket(i.getAddress(), i.getPort());
 							ObjectOutputStream oos = new ObjectOutputStream(socket.getOutputStream());
 							oos.flush();
 							ObjectInputStream ois = new ObjectInputStream(socket.getInputStream());
@@ -180,14 +194,7 @@ public class Proxy implements IProxy, Runnable
 								oos.close();
 								ois.close();
 								socket.close();
-								synchronized(files)
-								{
-									for(String s : listResponse.getFileNames())
-									{
-										files.add(s);
-									}
-									return new ListResponse(files);
-								}
+								files.addAll(listResponse.getFileNames());
 							} 
 							catch (ClassNotFoundException e)
 							{
@@ -195,15 +202,16 @@ public class Proxy implements IProxy, Runnable
 							}
 						}
 					}
+					return new ListResponse(files);
 				}
 			}
 		}
-		return new ListResponse(files);
 	}
 
 	@Override
 	public Response download(DownloadTicketRequest request) throws IOException
 	{
+		setQuorums();
 		if(username.equals(""))
 		{
 			return new MessageResponse("Please log in first.");
@@ -211,9 +219,9 @@ public class Proxy implements IProxy, Runnable
 		else
 		{
 			list();
-			synchronized(files)
+			//synchronized(files) TODO
 			{
-				if(files.contains(request.getFilename()))
+				//if(files.contains(request.getFilename()))
 				{
 					synchronized(serverIdentifier)
 					{
@@ -274,10 +282,10 @@ public class Proxy implements IProxy, Runnable
 						}
 					}
 				}
-				else
-				{
+				//else
+				/*{
 					return new MessageResponse("The file you wanted to download doesn't exist");
-				}
+				}*/
 			}
 		}
 	}
@@ -285,6 +293,7 @@ public class Proxy implements IProxy, Runnable
 	@Override
 	public MessageResponse upload(UploadRequest request) throws IOException
 	{
+		setQuorums();
 		if(username.equals(""))
 		{
 			return new MessageResponse("Please log in first.");
@@ -297,32 +306,50 @@ public class Proxy implements IProxy, Runnable
 				{
 					return new MessageResponse("No servers available.");
 				}
-				for(Map.Entry<Integer, FileServerInfo> entry : serverIdentifier.entrySet())
+				int version = -10;
+				synchronized(readQuorum)
 				{
-					Socket socket = new Socket(entry.getValue().getAddress(), entry.getKey());
-					ObjectOutputStream oos = new ObjectOutputStream(socket.getOutputStream());
-					oos.flush();
-					ObjectInputStream ois = new ObjectInputStream(socket.getInputStream());
-					String s = new String(request.getContent());
-
-					oos.writeObject(request);
-					oos.flush();
-
-					long fileSize = s.length();
-					synchronized(files)
+					for(FileServerInfo f : readQuorum.values())
 					{
-						files.add(request.getFilename());
+						version = Math.max(version, getVersionNumberFromFileServer(request.getFilename(), f));
 					}
-					synchronized(users)
+				}
+				System.out.println("Version before " + version);
+				if(version != -1)
+				{
+					version++;
+				}
+				else
+				{
+					version = 1;
+				}
+				System.out.println("Version after " + version);
+				synchronized(writeQuorum)
+				{
+					for(FileServerInfo f : writeQuorum.values())
 					{
-						UserInfo old = users.get(username);
-						UserInfo info = new UserInfo(username, old.getCredits()+fileSize, old.isOnline());
-						users.put(username, info);
+						UploadRequest updatedRequest = new UploadRequest(request.getFilename(), version, request.getContent());
+						Socket socket = new Socket(f.getAddress(), f.getPort());
+						ObjectOutputStream oos = new ObjectOutputStream(socket.getOutputStream());
+						oos.flush();
+						ObjectInputStream ois = new ObjectInputStream(socket.getInputStream());
+						String s = new String(updatedRequest.getContent());
+
+						oos.writeObject(updatedRequest);
+						oos.flush();
+
+						long fileSize = s.length();
+						synchronized(users)
+						{
+							UserInfo old = users.get(username);
+							UserInfo info = new UserInfo(username, old.getCredits()+fileSize*2, old.isOnline());
+							users.put(username, info);
+						}
+						oos.close();
+						ois.close();
+						socket.close();
+						writeQuorum.put(f.getPort(), new FileServerInfo(f.getAddress(), f.getPort(), f.getUsage()+fileSize, true));
 					}
-					oos.close();
-					ois.close();
-					socket.close();
-					serverIdentifier.put(entry.getKey(), new FileServerInfo(entry.getValue().getAddress(), entry.getKey(), entry.getValue().getUsage()+fileSize, true));
 				}
 				synchronized(users)
 				{
@@ -331,6 +358,7 @@ public class Proxy implements IProxy, Runnable
 			}
 		}
 	}
+
 
 
 
@@ -348,6 +376,7 @@ public class Proxy implements IProxy, Runnable
 				UserInfo old = users.get(username);
 				UserInfo info = new UserInfo(username, old.getCredits(), false);
 				users.put(username, info);
+				username = "";
 				return new MessageResponse("You were logged out");
 			}
 		}
@@ -442,5 +471,105 @@ public class Proxy implements IProxy, Runnable
 				return;
 			}
 		}
+	}
+
+
+	private void setQuorums()
+	{
+		HashMap<FileServerInfo, Integer> servers = new HashMap<FileServerInfo, Integer>();
+		for(FileServerInfo f : serverIdentifier.values())
+		{
+			servers.put(f, (int) f.getUsage());
+		}
+		
+		servers = (HashMap<FileServerInfo, Integer>) sortByComparator(servers);
+		
+		int quorumSize = Math.round(servers.size()/2)+1;
+		
+		readQuorum = new ConcurrentHashMap<Integer, FileServerInfo>();
+		writeQuorum = new ConcurrentHashMap<Integer, FileServerInfo>();
+
+		int x = 0;
+
+		for(FileServerInfo i : servers.keySet())
+		{
+			
+			if(x < quorumSize)
+			{
+				readQuorum.put(i.getPort(), i);
+				x++;
+			}
+			else
+			{
+				break;
+			}
+		}
+		x = 0;
+		for(FileServerInfo i : servers.keySet())
+		{
+			
+			if(x < quorumSize)
+			{
+				writeQuorum.put(i.getPort(), i);
+				x++;
+			}
+			else
+			{
+				break;
+			}
+		}
+		//System.out.println("Read: " + readQuorum.size());
+		//System.out.println("Write: " + writeQuorum.size());
+	}
+
+	private int getVersionNumberFromFileServer(String filename, FileServerInfo info)
+	{
+		int version = -1;
+		try
+		{
+			Socket socket = new Socket(info.getAddress(), info.getPort());
+			ObjectOutputStream oos = new ObjectOutputStream(socket.getOutputStream());
+			oos.flush();
+			ObjectInputStream ois = new ObjectInputStream(socket.getInputStream());
+			VersionRequest request = new VersionRequest(filename);
+			oos.writeObject(request);
+			oos.flush();
+			VersionResponse response = (VersionResponse)ois.readObject();
+			version = response.getVersion();
+			oos.close();
+			ois.close();
+			socket.close();
+		} 
+		catch (IOException e)
+		{
+			e.printStackTrace();
+		} 
+		catch (ClassNotFoundException e)
+		{
+			e.printStackTrace();
+		}
+		return version;
+	}
+	
+	private static Map sortByComparator(Map unsortMap) {
+		 
+		List list = new LinkedList(unsortMap.entrySet());
+ 
+		// sort list based on comparator
+		Collections.sort(list, new Comparator() {
+			public int compare(Object o1, Object o2) {
+				return ((Comparable) ((Map.Entry) (o1)).getValue())
+                                       .compareTo(((Map.Entry) (o2)).getValue());
+			}
+		});
+ 
+		// put sorted list into map again
+                //LinkedHashMap make sure order in which keys were inserted
+		Map sortedMap = new LinkedHashMap();
+		for (Iterator it = list.iterator(); it.hasNext();) {
+			Map.Entry entry = (Map.Entry) it.next();
+			sortedMap.put(entry.getKey(), entry.getValue());
+		}
+		return sortedMap;
 	}
 }

@@ -10,7 +10,9 @@ import java.io.ObjectOutputStream;
 import java.io.PrintWriter;
 import java.net.Socket;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Set;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import util.ChecksumUtils;
@@ -33,18 +35,19 @@ import message.response.InfoResponse;
 import message.response.ListResponse;
 import message.response.LoginResponse;
 import message.response.MessageResponse;
+import message.response.VersionResponse;
 import model.DownloadTicket;
 
 public class FileServer implements IFileServer, Runnable
 {
-	private HashSet<String> files;
 	private Socket socket;
 	private String directory;
 	private AtomicBoolean stop;
 	private ObjectInputStream objectInput;
 	private ObjectOutputStream objectOutput;
+	private HashMap<String, Integer> files;
 
-	public FileServer(HashSet<String> files, Socket socket, String directory, AtomicBoolean stop)
+	public FileServer(HashMap<String,Integer> files, Socket socket, String directory, AtomicBoolean stop)
 	{
 		this.socket = socket;
 		this.files = files;
@@ -67,7 +70,12 @@ public class FileServer implements IFileServer, Runnable
 	{
 		synchronized(files)
 		{
-			return new ListResponse(files);
+			Set<String> filenames = new HashSet<String>();
+			for(String s : files.keySet())
+			{
+				filenames.add(s);
+			}
+			return new ListResponse(filenames);
 		}
 	}
 
@@ -127,7 +135,7 @@ public class FileServer implements IFileServer, Runnable
 	{
 		synchronized(files)
 		{
-			if(files.contains(request.getFilename()))
+			if(files.containsKey(request.getFilename()))
 			{
 				File f = new File(directory, request.getFilename());
 				if(f.exists())
@@ -143,27 +151,35 @@ public class FileServer implements IFileServer, Runnable
 	@Override
 	public Response version(VersionRequest request) throws IOException
 	{
-		// TODO Auto-generated method stub
-		return null;
+		synchronized(files)
+		{
+			if(files.containsKey(request.getFilename()))
+			{
+				return new VersionResponse(request.getFilename(), files.get(request.getFilename()));
+			}
+			else
+			{
+				return new VersionResponse(request.getFilename(), -1);
+			}
+		}
 	}
 
 	@Override
 	public MessageResponse upload(UploadRequest request) throws IOException
 	{
-		File f = new File(directory, request.getFilename());
-		if(f.exists())
+		synchronized(files)
 		{
-			f.delete();
-		}
-		String text = new String(request.getContent());
-		File downloaded = new File(directory, request.getFilename());
-		downloaded.createNewFile();
+			files.put(request.getFilename(), request.getVersion());
+			String text = new String(request.getContent());
+			File downloaded = new File(directory, request.getFilename());
+			downloaded.createNewFile();
 
-		PrintWriter out = new PrintWriter(downloaded);
-		out.println(text);
-		out.flush();
-		out.close();
-		return new MessageResponse("File uploaded to server.");
+			PrintWriter out = new PrintWriter(downloaded);
+			out.println(text);
+			out.flush();
+			out.close();
+			return new MessageResponse("File uploaded to server.");
+		}
 	} 
 
 	@Override
@@ -198,6 +214,13 @@ public class FileServer implements IFileServer, Runnable
 				if (message instanceof UploadRequest)
 				{
 					MessageResponse response = (MessageResponse)upload((UploadRequest)message);
+					objectOutput.writeObject(response);
+					objectOutput.flush();
+					closeConnection();
+				}
+				if (message instanceof VersionRequest)
+				{
+					VersionResponse response = (VersionResponse)version((VersionRequest)message);
 					objectOutput.writeObject(response);
 					objectOutput.flush();
 					closeConnection();

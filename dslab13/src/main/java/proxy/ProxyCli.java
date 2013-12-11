@@ -27,24 +27,19 @@ public class ProxyCli implements IProxyCli
 {
 	private Shell shell;
 	private ServerSocket serverSocket;
-	private DatagramSocket datagramSocket;
-	private int timeout;
-	private int checkPeriod;
 	private ProxyOverseer overseer;
 	private AtomicBoolean stop = new AtomicBoolean(false);
 	private Thread t; // overseer thread
-	/*
-	 * username is the key, values (in that order) are password, credits, online status
-	 */
-	//private ConcurrentHashMap<String, UserInfo> users; 
+	
+	private ConcurrentHashMap<String, UserInfo> users; 
 
 	private ConcurrentHashMap<Integer, FileServerInfo> serverIdentifier;
 
 	public ProxyCli(Config config, Shell shell)
 	{
 		this.shell = shell;
-		//users = new ConcurrentHashMap<String,UserInfo>();
-		serverIdentifier = new ConcurrentHashMap<Integer, FileServerInfo>();
+		users = UserData.getInstance().users;
+		serverIdentifier = ServerData.getInstance().servers;
 		try
 		{
 			serverSocket = new ServerSocket(config.getInt("tcp.port"));
@@ -53,7 +48,7 @@ public class ProxyCli implements IProxyCli
 		{
 			e.printStackTrace();
 		}
-		overseer = new ProxyOverseer(config, serverSocket, serverIdentifier, stop);
+		overseer = new ProxyOverseer(config, serverSocket, stop);
 		t = new Thread(overseer);
 		t.start();
 	}
@@ -82,7 +77,6 @@ public class ProxyCli implements IProxyCli
 	Response users() throws IOException
 	{
 		String text = "";
-		ConcurrentHashMap<String, UserInfo> users = UserData.getInstance().users;
 		synchronized(users)
 		{
 			for (Map.Entry<String, UserInfo> entry : users.entrySet()) 

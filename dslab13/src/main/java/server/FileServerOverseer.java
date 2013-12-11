@@ -7,6 +7,7 @@ import java.net.ServerSocket;
 import java.net.SocketException;
 import java.util.ArrayList;
 import java.util.Enumeration;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -28,7 +29,7 @@ public class FileServerOverseer implements Runnable
 	private int proxyUdp;
 	private String directory;
 	private int tcpPort;
-	private HashSet<String> files;
+	private HashMap<String,Integer> files;
 
 	public FileServerOverseer(Config config, ServerSocket serverSocket, DatagramSocket datagramSocket, AtomicBoolean stop)
 	{
@@ -36,7 +37,7 @@ public class FileServerOverseer implements Runnable
 		this.serverSocket = serverSocket;
 		this.datagramSocket = datagramSocket;
 		this.stop = stop;
-		files = new HashSet<String>();
+		files = new HashMap<String,Integer>();
 		pool = Executors.newFixedThreadPool(20);
 	}
 
@@ -76,7 +77,7 @@ public class FileServerOverseer implements Runnable
 			File[] listOfFiles = folder.listFiles();
 			for (File file : listOfFiles) 
 			{
-			    files.add(file.getName());
+			    files.put(file.getName(),0);
 			}
 		} 
 		catch (IOException e)

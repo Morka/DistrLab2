@@ -23,17 +23,14 @@ public class FileServerListener implements Runnable
 
 	private ConcurrentHashMap<Integer, FileServerInfo> serverIdentifier;
 	
-	//private HashSet<String> files;
-
-	public FileServerListener(DatagramSocket socket, int timeout, int checkPeriod, AtomicBoolean stop, HashSet<String> files, ConcurrentHashMap<Integer, FileServerInfo> s)
+	public FileServerListener(DatagramSocket socket, int timeout, int checkPeriod, AtomicBoolean stop)
 	{
 		this.socket = socket;
 		this.timeout = timeout;
 		this.checkPeriod = checkPeriod;
 		this.stop = stop;
-		//this.files = files;
 		lastOnline = new HashMap<Integer, Long>();
-		this.serverIdentifier = s;
+		this.serverIdentifier = ServerData.getInstance().servers;
 	}
 
 	@Override
