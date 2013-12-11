@@ -23,7 +23,7 @@ public class UserData
 	    return instance;
 	}
 	
-	public synchronized void setUsers(ConcurrentHashMap<String, UserInfo> usersList) {
+	/*public synchronized void setUsers(ConcurrentHashMap<String, UserInfo> usersList) {
 		users = usersList;		
-	}
+	}*/
 }

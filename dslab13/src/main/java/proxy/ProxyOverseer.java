@@ -33,20 +33,14 @@ public class ProxyOverseer implements Runnable
 	private int checkPeriod;
 	private AtomicBoolean stop;
 	
-	/*
-	 * username is the key, values (in that order) are password, credits, online status
-	 */
 	private ConcurrentHashMap<String, UserInfo> users; 
-
-	private HashSet<String> files;
 	
 	public ProxyOverseer(Config config, ServerSocket serverSocket, AtomicBoolean stop)
 	{
 		this.config = config;
-		this.users = new ConcurrentHashMap<String, UserInfo>();
+		this.users = UserData.getInstance().users;
 		this.stop = stop;
 		this.serverSocket = serverSocket;
-		files = new HashSet<String>();
 		pool = Executors.newFixedThreadPool(10);
 	}
 	
@@ -111,10 +105,9 @@ public class ProxyOverseer implements Runnable
 				values.add("offline");*/
 				Long credits = Long.valueOf(config.getString(userName + ".credits"));
 				UserInfo userinfo = new UserInfo(userName,credits, false);
-				//users.put(userName, values);
 				users.put(userName, userinfo);
 			}
-			UserData.getInstance().setUsers(users);
+			//UserData.getInstance().setUsers(users);
 			pool.execute(new FileServerListener(datagramSocket, timeout, checkPeriod, stop));
 		} 
 		catch (IOException e)
