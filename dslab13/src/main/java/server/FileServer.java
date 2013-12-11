@@ -143,8 +143,8 @@ public class FileServer implements IFileServer, Runnable
 					return new InfoResponse(request.getFilename(), f.length());
 				}
 			}
-
-			return new InfoResponse(request.getFilename(),0);
+			return new InfoResponse(request.getFilename(), -1);
+			
 		}
 	}
 

@@ -211,82 +211,132 @@ public class Proxy implements IProxy, Runnable
 	@Override
 	public Response download(DownloadTicketRequest request) throws IOException
 	{
+		long fileSize = 0;
+		int version = -1;
 		setQuorums();
+
+		InetAddress address = null;
+		int port = 0;
+		long usage = 0;
+		
 		if(username.equals(""))
 		{
 			return new MessageResponse("Please log in first.");
 		}
 		else
 		{
-			list();
-			//synchronized(files) TODO
+			synchronized(readQuorum)
 			{
-				//if(files.contains(request.getFilename()))
-				{
-					synchronized(serverIdentifier)
-					{
-						if(serverIdentifier.isEmpty())
-						{
-							return new MessageResponse("No servers available.");
-						}
-						long min = Long.MAX_VALUE;
-						InetAddress address = null;
-						int port = 0;
-						long usage = 0;
-						for(Map.Entry<Integer, FileServerInfo> entry : serverIdentifier.entrySet())
-						{
-							usage = entry.getValue().getUsage();
-							if(min > usage)
-							{
-								min = usage;
-								address = entry.getValue().getAddress();
-								port = entry.getKey();
-							}
-						}
-						usage = serverIdentifier.get(port).getUsage();
-						Socket socket = new Socket(address, port);
-						ObjectOutputStream oos = new ObjectOutputStream(socket.getOutputStream());
-						oos.flush();
-						ObjectInputStream ois = new ObjectInputStream(socket.getInputStream());
-						InfoRequest infoRequest = new InfoRequest(request.getFilename());
-
-						oos.writeObject(infoRequest);
-						oos.flush();
-						long fileSize = 0;
-						InfoResponse infoResponse;
-						try
-						{
-							infoResponse = (InfoResponse) ois.readObject();
-							fileSize = infoResponse.getSize();
-							oos.close();
-							ois.close();
-							socket.close();
-						} 
-						catch (ClassNotFoundException e)
-						{
-							e.printStackTrace();
-						}
-						synchronized(users)
-						{
-							if (fileSize > users.get(username).getCredits())
-							{
-								return new MessageResponse("The file requires "+String.valueOf(fileSize)+" credits to download, but you only have "+users.get(username).getCredits());
-							}
-							String checksum = ChecksumUtils.generateChecksum(username, request.getFilename(), 0, fileSize);
-							DownloadTicket ticket = new DownloadTicket(username, request.getFilename(), checksum, address, port);
-							UserInfo old = users.get(username);
-							UserInfo info = new UserInfo(username, old.getCredits()-fileSize, old.isOnline());
-							users.put(username, info);
-							serverIdentifier.put(port, new FileServerInfo(address, port, usage+fileSize, true));
-							return new DownloadTicketResponse(ticket);
-						}
+			for (FileServerInfo i : readQuorum.values()) {
+				// Request Info if FileServer has File
+				try {
+				// ------------------ Info ---------------------
+				Socket socket = new Socket(i.getAddress(),i.getPort());
+				ObjectOutputStream out = new ObjectOutputStream(socket.getOutputStream());
+				ObjectInputStream in = new ObjectInputStream(socket.getInputStream());
+				InfoRequest info = new InfoRequest(request.getFilename());
+				out.writeObject(info);
+				out.flush();
+				// One Line is received and passed along to the Shell Commands:
+				InfoResponse inforesponse = (InfoResponse)in.readObject();
+				if (inforesponse.getSize() == -1) {
+					// File does not exist on FileServer.
+					in.close();
+					out.close();
+					socket.close();
+					continue;
+				}
+				fileSize = ((InfoResponse)inforesponse).getSize();
+				in.close();
+				out.close();
+				socket.close();
+				
+				// if yes save Version and Fileserver
+				// ------------------ Version ------------------
+				Socket socket2 = new Socket(i.getAddress(),i.getPort());
+				ObjectOutputStream out2 = new ObjectOutputStream(socket2.getOutputStream());
+				ObjectInputStream in2 = new ObjectInputStream(socket2.getInputStream());
+				VersionRequest versionrequest = new VersionRequest(request.getFilename());
+				out2.writeObject(versionrequest);
+				out2.flush();
+				// One Line is received and passed along to the Shell Commands:
+				VersionResponse versionresponse = (VersionResponse)in2.readObject();
+				int tmp = versionresponse.getVersion();
+				// Take Fileserver with highest Version
+				if (tmp == version) {
+					if (i.getUsage() < usage) {
+						version = tmp;
+						usage = i.getUsage();
+						address = i.getAddress();
+						port = i.getPort();
 					}
 				}
-				//else
-				/*{
-					return new MessageResponse("The file you wanted to download doesn't exist");
-				}*/
+				if (tmp > version) {
+					version = tmp;
+					usage = i.getUsage();
+					address = i.getAddress();
+					port = i.getPort();					
+				}
+				in2.close();
+				out2.close();
+				socket2.close();
+				} catch (ClassNotFoundException e) {
+					// TODO Auto-generated catch block
+					e.printStackTrace();
+				}
 			}
+			}
+			if (version != -1) {
+				synchronized (serverIdentifier) {
+					/*
+					 * if(serverIdentifier.isEmpty()) { return new
+					 * MessageResponse("No servers available."); } long min =
+					 * Long.MAX_VALUE; InetAddress address = null; int port = 0;
+					 * long usage = 0; for(Map.Entry<Integer, FileServerInfo>
+					 * entry : serverIdentifier.entrySet()) { usage =
+					 * entry.getValue().getUsage(); if(min > usage) { min =
+					 * usage; address = entry.getValue().getAddress(); port =
+					 * entry.getKey(); } } usage =
+					 * serverIdentifier.get(port).getUsage(); Socket socket =
+					 * new Socket(address, port); ObjectOutputStream oos = new
+					 * ObjectOutputStream(socket.getOutputStream());
+					 * oos.flush(); ObjectInputStream ois = new
+					 * ObjectInputStream(socket.getInputStream()); InfoRequest
+					 * infoRequest = new InfoRequest(request.getFilename());
+					 * 
+					 * oos.writeObject(infoRequest); oos.flush(); long fileSize
+					 * = 0; InfoResponse infoResponse; try { infoResponse =
+					 * (InfoResponse) ois.readObject(); fileSize =
+					 * infoResponse.getSize(); oos.close(); ois.close();
+					 * socket.close(); } catch (ClassNotFoundException e) {
+					 * e.printStackTrace(); }
+					 */
+					synchronized (users) {
+						if (fileSize > users.get(username).getCredits()) {
+							return new MessageResponse(
+									"The file requires "
+											+ String.valueOf(fileSize)
+											+ " credits to download, but you only have "
+											+ users.get(username).getCredits());
+						}
+						String checksum = ChecksumUtils.generateChecksum(
+								username, request.getFilename(), 0, fileSize);
+						DownloadTicket ticket = new DownloadTicket(username,
+								request.getFilename(), checksum, address, port);
+						UserInfo old = users.get(username);
+						UserInfo info = new UserInfo(username, old.getCredits()
+								- fileSize, old.isOnline());
+						users.put(username, info);
+						serverIdentifier.put(port, new FileServerInfo(address,
+								port, usage + fileSize, true));
+						return new DownloadTicketResponse(ticket);
+					}
+				}
+			} else {
+				return new MessageResponse(
+						"The file you wanted to download doesn't exist");
+			}
+
 		}
 	}
 
