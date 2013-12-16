@@ -1,11 +1,18 @@
 package proxy;
 
+import java.io.BufferedReader;
+import java.io.File;
+import java.io.FileNotFoundException;
+import java.io.FileReader;
 import java.io.IOException;
 import java.net.DatagramSocket;
 import java.net.InetAddress;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.net.SocketException;
+import java.security.InvalidKeyException;
+import java.security.Key;
+import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
 import java.util.Enumeration;
 import java.util.HashSet;
@@ -14,6 +21,11 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicBoolean;
+
+import javax.crypto.Mac;
+import javax.crypto.spec.SecretKeySpec;
+
+import org.bouncycastle.jce.provider.JCEMac.SHA256;
 
 import model.FileServerInfo;
 import model.UserInfo;
@@ -54,7 +66,7 @@ public class ProxyOverseer implements Runnable
 			try
 			{
 				Socket clientSocket = serverSocket.accept();
-				Proxy proxy = new Proxy(clientSocket, stop);
+				Proxy proxy = new Proxy(clientSocket, config, stop);
 				sockets.add(clientSocket);
 				pool.execute(proxy);
 			} 
@@ -89,7 +101,7 @@ public class ProxyOverseer implements Runnable
 			datagramSocket = new DatagramSocket(config.getInt("udp.port"));
 			timeout = config.getInt("fileserver.timeout");
 			checkPeriod = config.getInt("fileserver.checkPeriod");
-			config = new Config("user");
+			Config uConfig = new Config("user");
 			MyConfig myConfig = new MyConfig("user");
 			Enumeration<String> userNames = myConfig.getKeys();
 			while(userNames.hasMoreElements())
@@ -103,11 +115,10 @@ public class ProxyOverseer implements Runnable
 				values.add(config.getString(userName + ".password"));
 				values.add(config.getString(userName + ".credits"));
 				values.add("offline");*/
-				Long credits = Long.valueOf(config.getString(userName + ".credits"));
+				Long credits = Long.valueOf(uConfig.getString(userName + ".credits"));
 				UserInfo userinfo = new UserInfo(userName,credits, false);
 				users.put(userName, userinfo);
 			}
-			//UserData.getInstance().setUsers(users);
 			pool.execute(new FileServerListener(datagramSocket, timeout, checkPeriod, stop));
 		} 
 		catch (IOException e)

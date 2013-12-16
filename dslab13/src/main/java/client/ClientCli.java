@@ -156,7 +156,7 @@ public class ClientCli implements IClientCli
 	@Command
 	public Response list() throws IOException
 	{
-		ListRequest request = new ListRequest();
+		ListRequest request = new ListRequest("");
 		
 		this.sendToServer(request);
 		
@@ -195,7 +195,7 @@ public class ClientCli implements IClientCli
 				ObjectOutputStream oos = new ObjectOutputStream(downloadSocket.getOutputStream());
 				oos.flush();
 				ObjectInputStream ois = new ObjectInputStream(downloadSocket.getInputStream());
-				DownloadFileRequest fileRequest = new DownloadFileRequest(ticket);
+				DownloadFileRequest fileRequest = new DownloadFileRequest("",ticket);
 
 				oos.writeObject(fileRequest);
 				oos.flush();
@@ -262,7 +262,7 @@ public class ClientCli implements IClientCli
 				}
 				String text = sb.toString();
 
-				UploadRequest request = new UploadRequest(filename, 0, text.getBytes());
+				UploadRequest request = new UploadRequest("",filename, 0, text.getBytes());
 				
 				this.sendToServer(request);
 					

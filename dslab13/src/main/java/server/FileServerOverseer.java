@@ -16,6 +16,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import proxy.FileServerListener;
 
 import util.Config;
+import util.HmacHelper;
 import util.MyConfig;
 
 public class FileServerOverseer implements Runnable
@@ -49,7 +50,7 @@ public class FileServerOverseer implements Runnable
 		{
 			try
 			{
-				pool.execute(new FileServer(files, serverSocket.accept(), directory, stop));
+				pool.execute(new FileServer(files, serverSocket.accept(), directory, config, stop));
 			}
 			catch(SocketException se)
 			{

@@ -69,14 +69,14 @@ public class FileServerListener implements Runnable
 		public void run() {
 			byte[] buffer;
 			while (!stop.get()) {
-				buffer = new byte[4];
+				buffer = new byte[32];
 				DatagramPacket p = new DatagramPacket(buffer, buffer.length);
 				Long current = System.currentTimeMillis();
 				try {
 					socket.receive(p);
 					InetAddress address = p.getAddress();
-					ByteBuffer wrapped = ByteBuffer.wrap(p.getData());
-					int port = wrapped.getInt();
+					String[] received = new String(p.getData(), 0, p.getLength()).split(" ");
+					int port = Integer.parseInt(received[1]);
 					lastOnline.put(port, current);
 					
 					synchronized (serverIdentifier) {

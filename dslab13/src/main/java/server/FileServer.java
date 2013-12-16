@@ -16,6 +16,8 @@ import java.util.Set;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import util.ChecksumUtils;
+import util.Config;
+import util.HmacHelper;
 
 import message.Request;
 import message.Response;
@@ -46,9 +48,11 @@ public class FileServer implements IFileServer, Runnable
 	private ObjectInputStream objectInput;
 	private ObjectOutputStream objectOutput;
 	private HashMap<String, Integer> files;
+	private HmacHelper hMac;
 
-	public FileServer(HashMap<String,Integer> files, Socket socket, String directory, AtomicBoolean stop)
+	public FileServer(HashMap<String,Integer> files, Socket socket, String directory, Config config, AtomicBoolean stop)
 	{
+		hMac = new HmacHelper(config);
 		this.socket = socket;
 		this.files = files;
 		this.directory = directory;
@@ -75,7 +79,8 @@ public class FileServer implements IFileServer, Runnable
 			{
 				filenames.add(s);
 			}
-			return new ListResponse(filenames);
+			ListResponse tmp = new ListResponse("", filenames);
+			return new ListResponse(hMac.createHash(tmp.toString()),filenames);
 		}
 	}
 
@@ -192,7 +197,16 @@ public class FileServer implements IFileServer, Runnable
 				Request message = (Request)objectInput.readObject();
 				if (message instanceof ListRequest)
 				{
-					ListResponse response = (ListResponse)list();
+					Response response;
+					if(!hMac.verifyHash(((ListRequest) message).gethMac(), message.toString()))
+					{
+						System.out.println("This message has been tampered with: " + message.toString());
+						response = new MessageResponse("!again");
+					}
+					else
+					{
+						response = (ListResponse)list();
+					}
 					objectOutput.writeObject(response);
 					objectOutput.flush();
 					closeConnection();
@@ -242,7 +256,7 @@ public class FileServer implements IFileServer, Runnable
 			}
 		}
 	}
-
+	
 	private void closeConnection()
 	{
 		try

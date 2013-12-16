@@ -16,11 +16,13 @@ public class UploadRequest implements Request {
 	private static final long serialVersionUID = 6951706197428053894L;
 	private static final Charset CHARSET = Charset.forName("ISO-8859-1");
 
+	private final String hMac;
 	private final String filename;
 	private final int version;
 	private final byte[] content;
 
-	public UploadRequest(String filename, int version, byte[] content) {
+	public UploadRequest(String hMac, String filename, int version, byte[] content) {
+		this.hMac = hMac;
 		this.filename = filename;
 		this.version = version;
 		this.content = content;
@@ -40,6 +42,11 @@ public class UploadRequest implements Request {
 
 	@Override
 	public String toString() {
-		return String.format("!upload %s %d %s", getFilename(), getVersion(), new String(getContent(), CHARSET));
+		return String.format("%s !upload %s %d %s", getHMac(), getFilename(), getVersion(), new String(getContent(), CHARSET));
+	}
+
+	private String getHMac()
+	{
+		return hMac;
 	}
 }

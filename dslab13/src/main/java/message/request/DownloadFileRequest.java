@@ -17,17 +17,24 @@ public class DownloadFileRequest implements Request {
 	private static final long serialVersionUID = 210648071424508878L;
 
 	private final DownloadTicket ticket;
+	private final String hMac;
 
-	public DownloadFileRequest(DownloadTicket ticket) {
+	public DownloadFileRequest(String hMac, DownloadTicket ticket) {
+		this.hMac = hMac;
 		this.ticket = ticket;
 	}
 
+	public String getHMac() 
+	{
+		return hMac;
+	}
+	
 	public DownloadTicket getTicket() {
 		return ticket;
 	}
 
 	@Override
 	public String toString() {
-		return "!download " + ticket;
+		return hMac + "!download " + ticket;
 	}
 }

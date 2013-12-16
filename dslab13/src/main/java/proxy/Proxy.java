@@ -26,6 +26,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicBoolean;
 import util.ChecksumUtils;
 import util.Config;
+import util.HmacHelper;
 import message.Request;
 import message.Response;
 import message.request.BuyRequest;
@@ -58,6 +59,7 @@ public class Proxy implements IProxy, Runnable
 	private Socket clientSocket;
 	private String username;
 	private AtomicBoolean stop;
+	private HmacHelper hMac;
 
 	private ConcurrentHashMap<Integer, FileServerInfo> readQuorum = null;
 	private ConcurrentHashMap<Integer, FileServerInfo> writeQuorum = null;
@@ -66,8 +68,9 @@ public class Proxy implements IProxy, Runnable
 
 	private ConcurrentHashMap<Integer, FileServerInfo> serverIdentifier;
 
-	public Proxy(Socket clientSocket, AtomicBoolean stop)
+	public Proxy(Socket clientSocket, Config config, AtomicBoolean stop)
 	{
+		hMac = new HmacHelper(config);
 		this.clientSocket = clientSocket;
 		this.users = UserData.getInstance().users;	
 		this.stop = stop;
@@ -184,17 +187,31 @@ public class Proxy implements IProxy, Runnable
 							ObjectOutputStream oos = new ObjectOutputStream(socket.getOutputStream());
 							oos.flush();
 							ObjectInputStream ois = new ObjectInputStream(socket.getInputStream());
-							ListRequest listRequest = new ListRequest();
+							ListRequest listRequest = new ListRequest(hMac.createHash("!list"));
 
 							oos.writeObject(listRequest);
 							oos.flush();
 							try
 							{
-								ListResponse listResponse = (ListResponse) ois.readObject();
-								oos.close();
-								ois.close();
-								socket.close();
-								files.addAll(listResponse.getFileNames());
+								Response response = (Response) ois.readObject();
+								if(response instanceof ListResponse)
+								{
+									ListResponse listResponse = (ListResponse)response;
+									if(!hMac.verifyHash(listResponse.gethMac(), listResponse.toString()))
+									{
+										System.out.println("This message has been tampered with: " + listResponse.toString());
+									}
+									oos.close();
+									ois.close();
+									socket.close();
+									files.addAll(listResponse.getFileNames());
+								}
+								if(response instanceof MessageResponse)
+								{
+									System.out.println("Response from Fileserver: " + response.toString());
+									oos.writeObject(listRequest);
+									oos.flush();
+								}
 							} 
 							catch (ClassNotFoundException e)
 							{
@@ -202,7 +219,7 @@ public class Proxy implements IProxy, Runnable
 							}
 						}
 					}
-					return new ListResponse(files);
+					return new ListResponse("", files);
 				}
 			}
 		}
@@ -218,7 +235,7 @@ public class Proxy implements IProxy, Runnable
 		InetAddress address = null;
 		int port = 0;
 		long usage = 0;
-		
+
 		if(username.equals(""))
 		{
 			return new MessageResponse("Please log in first.");
@@ -227,64 +244,64 @@ public class Proxy implements IProxy, Runnable
 		{
 			synchronized(readQuorum)
 			{
-			for (FileServerInfo i : readQuorum.values()) {
-				// Request Info if FileServer has File
-				try {
-				// ------------------ Info ---------------------
-				Socket socket = new Socket(i.getAddress(),i.getPort());
-				ObjectOutputStream out = new ObjectOutputStream(socket.getOutputStream());
-				ObjectInputStream in = new ObjectInputStream(socket.getInputStream());
-				InfoRequest info = new InfoRequest(request.getFilename());
-				out.writeObject(info);
-				out.flush();
-				// One Line is received and passed along to the Shell Commands:
-				InfoResponse inforesponse = (InfoResponse)in.readObject();
-				if (inforesponse.getSize() == -1) {
-					// File does not exist on FileServer.
-					in.close();
-					out.close();
-					socket.close();
-					continue;
-				}
-				fileSize = ((InfoResponse)inforesponse).getSize();
-				in.close();
-				out.close();
-				socket.close();
-				
-				// if yes save Version and Fileserver
-				// ------------------ Version ------------------
-				Socket socket2 = new Socket(i.getAddress(),i.getPort());
-				ObjectOutputStream out2 = new ObjectOutputStream(socket2.getOutputStream());
-				ObjectInputStream in2 = new ObjectInputStream(socket2.getInputStream());
-				VersionRequest versionrequest = new VersionRequest(request.getFilename());
-				out2.writeObject(versionrequest);
-				out2.flush();
-				// One Line is received and passed along to the Shell Commands:
-				VersionResponse versionresponse = (VersionResponse)in2.readObject();
-				int tmp = versionresponse.getVersion();
-				// Take Fileserver with highest Version
-				if (tmp == version) {
-					if (i.getUsage() < usage) {
-						version = tmp;
-						usage = i.getUsage();
-						address = i.getAddress();
-						port = i.getPort();
+				for (FileServerInfo i : readQuorum.values()) {
+					// Request Info if FileServer has File
+					try {
+						// ------------------ Info ---------------------
+						Socket socket = new Socket(i.getAddress(),i.getPort());
+						ObjectOutputStream out = new ObjectOutputStream(socket.getOutputStream());
+						ObjectInputStream in = new ObjectInputStream(socket.getInputStream());
+						InfoRequest info = new InfoRequest(request.getFilename());
+						out.writeObject(info);
+						out.flush();
+						// One Line is received and passed along to the Shell Commands:
+						InfoResponse inforesponse = (InfoResponse)in.readObject();
+						if (inforesponse.getSize() == -1) {
+							// File does not exist on FileServer.
+							in.close();
+							out.close();
+							socket.close();
+							continue;
+						}
+						fileSize = ((InfoResponse)inforesponse).getSize();
+						in.close();
+						out.close();
+						socket.close();
+
+						// if yes save Version and Fileserver
+						// ------------------ Version ------------------
+						Socket socket2 = new Socket(i.getAddress(),i.getPort());
+						ObjectOutputStream out2 = new ObjectOutputStream(socket2.getOutputStream());
+						ObjectInputStream in2 = new ObjectInputStream(socket2.getInputStream());
+						VersionRequest versionrequest = new VersionRequest(request.getFilename());
+						out2.writeObject(versionrequest);
+						out2.flush();
+						// One Line is received and passed along to the Shell Commands:
+						VersionResponse versionresponse = (VersionResponse)in2.readObject();
+						int tmp = versionresponse.getVersion();
+						// Take Fileserver with highest Version
+						if (tmp == version) {
+							if (i.getUsage() < usage) {
+								version = tmp;
+								usage = i.getUsage();
+								address = i.getAddress();
+								port = i.getPort();
+							}
+						}
+						if (tmp > version) {
+							version = tmp;
+							usage = i.getUsage();
+							address = i.getAddress();
+							port = i.getPort();					
+						}
+						in2.close();
+						out2.close();
+						socket2.close();
+					} catch (ClassNotFoundException e) {
+						// TODO Auto-generated catch block
+						e.printStackTrace();
 					}
 				}
-				if (tmp > version) {
-					version = tmp;
-					usage = i.getUsage();
-					address = i.getAddress();
-					port = i.getPort();					
-				}
-				in2.close();
-				out2.close();
-				socket2.close();
-				} catch (ClassNotFoundException e) {
-					// TODO Auto-generated catch block
-					e.printStackTrace();
-				}
-			}
 			}
 			if (version != -1) {
 				synchronized (serverIdentifier) {
@@ -378,7 +395,7 @@ public class Proxy implements IProxy, Runnable
 				{
 					for(FileServerInfo f : writeQuorum.values())
 					{
-						UploadRequest updatedRequest = new UploadRequest(request.getFilename(), version, request.getContent());
+						UploadRequest updatedRequest = new UploadRequest("", request.getFilename(), version, request.getContent());
 						Socket socket = new Socket(f.getAddress(), f.getPort());
 						ObjectOutputStream oos = new ObjectOutputStream(socket.getOutputStream());
 						oos.flush();
@@ -531,11 +548,11 @@ public class Proxy implements IProxy, Runnable
 		{
 			servers.put(f, (int) f.getUsage());
 		}
-		
+
 		servers = (HashMap<FileServerInfo, Integer>) sortByComparator(servers);
-		
+
 		int quorumSize = Math.round(servers.size()/2)+1;
-		
+
 		readQuorum = new ConcurrentHashMap<Integer, FileServerInfo>();
 		writeQuorum = new ConcurrentHashMap<Integer, FileServerInfo>();
 
@@ -543,7 +560,7 @@ public class Proxy implements IProxy, Runnable
 
 		for(FileServerInfo i : servers.keySet())
 		{
-			
+
 			if(x < quorumSize)
 			{
 				readQuorum.put(i.getPort(), i);
@@ -557,7 +574,7 @@ public class Proxy implements IProxy, Runnable
 		x = 0;
 		for(FileServerInfo i : servers.keySet())
 		{
-			
+
 			if(x < quorumSize)
 			{
 				writeQuorum.put(i.getPort(), i);
@@ -600,21 +617,21 @@ public class Proxy implements IProxy, Runnable
 		}
 		return version;
 	}
-	
+
 	private static Map sortByComparator(Map unsortMap) {
-		 
+
 		List list = new LinkedList(unsortMap.entrySet());
- 
+
 		// sort list based on comparator
 		Collections.sort(list, new Comparator() {
 			public int compare(Object o1, Object o2) {
 				return ((Comparable) ((Map.Entry) (o1)).getValue())
-                                       .compareTo(((Map.Entry) (o2)).getValue());
+						.compareTo(((Map.Entry) (o2)).getValue());
 			}
 		});
- 
+
 		// put sorted list into map again
-                //LinkedHashMap make sure order in which keys were inserted
+		//LinkedHashMap make sure order in which keys were inserted
 		Map sortedMap = new LinkedHashMap();
 		for (Iterator it = list.iterator(); it.hasNext();) {
 			Map.Entry entry = (Map.Entry) it.next();
