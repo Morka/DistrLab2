@@ -26,10 +26,20 @@ public class Base64Channel implements Channel{
 	}
 	
 	public byte[] decode(String encodedMessage, Key key){
-		byte[] decodedMessage;
-		
-		decodedMessage = Base64.decode(encodedMessage.getBytes());
+		return this.decode(encodedMessage.getBytes(), key);
+	}
 
+	@Override
+	public byte[] encode(String toEncode, Key key) {
+		return this.encode(toEncode.getBytes(), key);
+	}
+
+	@Override
+	public byte[] decode(byte[] toDecode, Key key) {
+		byte[]decodedMessage;
+		
+		decodedMessage = Base64.decode(toDecode);
+		
 		return decodedMessage;
 	}
 }

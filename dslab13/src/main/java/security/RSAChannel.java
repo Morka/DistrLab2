@@ -27,6 +27,11 @@ public class RSAChannel implements Channel{
 	 * 
 	 * @return byte array of the encrypted String. make sure it is encoded via base64 afterwards 
 	 * */
+	
+	public byte[] encode(String stringToEncrypt, Key key){
+		return this.encode(stringToEncrypt.getBytes(), key);
+	}
+	
 	public byte[] encode(byte[] bytesToEncrypt, Key key){
 		PublicKey publicKey = (PublicKey)key;
 

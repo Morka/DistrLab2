@@ -24,6 +24,7 @@ import message.request.DownloadTicketRequest;
 import message.request.InfoRequest;
 import message.request.ListRequest;
 import message.request.LoginRequest;
+import message.request.LoginRequestHandshake;
 import message.request.LogoutRequest;
 import message.request.UploadRequest;
 import message.response.BuyResponse;
@@ -32,6 +33,7 @@ import message.response.DownloadTicketResponse;
 import message.response.InfoResponse;
 import message.response.ListResponse;
 import message.response.LoginResponse;
+import message.response.LoginResponseHandshake;
 import message.response.MessageResponse;
 import model.DownloadTicket;
 import model.FileServerInfo;
@@ -352,6 +354,17 @@ public class Proxy implements IProxy, Runnable
 			}
 		}
 	}
+	
+	private LoginResponseHandshake loginHandshake(LoginRequestHandshake loginRequest){
+		System.out.println("loginhandshake");
+		LoginHandler loginHandler = new LoginHandler();
+		return loginHandler.sendBackHandshake(loginRequest);
+	}
+	
+	private void sendResponse(Response response) throws SocketException, EOFException, IOException{
+		this.objectOutput.writeObject(response);
+		this.objectOutput.flush();
+	}
 
 	@Override
 	public void run()
@@ -361,48 +374,51 @@ public class Proxy implements IProxy, Runnable
 			try
 			{
 				Request message = (Request)objectInput.readObject();
-				if (message instanceof LoginRequest)
+				/*if (message instanceof LoginRequest)
 				{
 					LoginResponse response = login((LoginRequest)message);
-					objectOutput.writeObject(response);
-					objectOutput.flush();
-				}
-				if (message instanceof CreditsRequest)
+					this.sendResponse(response);
+				}*/
+				if (message instanceof LoginRequestHandshake){					
+					LoginResponseHandshake response = this.loginHandshake((LoginRequestHandshake)message);
+					this.sendResponse(response);
+				}	
+				else if (message instanceof CreditsRequest)
 				{
 					Response response = credits();
-					objectOutput.writeObject(response);
-					objectOutput.flush();
+					this.sendResponse(response);
+
 				}
-				if (message instanceof BuyRequest)
+				else if (message instanceof BuyRequest)
 				{
 					Response response = buy((BuyRequest)message);
-					objectOutput.writeObject(response);
-					objectOutput.flush();
+					this.sendResponse(response);
+
 				}
-				if (message instanceof ListRequest)
+				else if (message instanceof ListRequest)
 				{
 					Response response = list();
-					objectOutput.writeObject(response);
-					objectOutput.flush();
+					this.sendResponse(response);
+
 				}
-				if (message instanceof DownloadTicketRequest)
+				else if (message instanceof DownloadTicketRequest)
 				{
 					Response response = download((DownloadTicketRequest)message);
-					objectOutput.writeObject(response);
-					objectOutput.flush();
+					this.sendResponse(response);
+
 				}
-				if (message instanceof UploadRequest)
+				else if (message instanceof UploadRequest)
 				{
 					MessageResponse response = upload((UploadRequest)message);
-					objectOutput.writeObject(response);
-					objectOutput.flush();
+					this.sendResponse(response);
+
 				}
-				if (message instanceof LogoutRequest)
+				else if (message instanceof LogoutRequest)
 				{
 					MessageResponse response = logout();
-					objectOutput.writeObject(response);
-					objectOutput.flush();
+					this.sendResponse(response);
 				}
+				
 			}
 			catch(SocketException se)
 			{
