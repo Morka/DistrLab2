@@ -110,9 +110,10 @@ public class FileServer implements IFileServer, Runnable
 					String text = sb.toString();
 
 					DownloadFileResponse fileResponse = new DownloadFileResponse(ticket, text.getBytes());
-
+					
 					objectOutput.writeObject(fileResponse);
 					objectOutput.flush();
+					System.out.println("Sent file");
 					try
 					{
 						return (MessageResponse)objectInput.readObject();
@@ -145,10 +146,12 @@ public class FileServer implements IFileServer, Runnable
 				File f = new File(directory, request.getFilename());
 				if(f.exists())
 				{
-					return new InfoResponse(request.getFilename(), f.length());
+					InfoResponse response = new InfoResponse(request.getFilename(), f.length());
+					return new InfoResponse(hMac.createHash(response.toString()), request.getFilename(), f.length());
 				}
 			}
-			return new InfoResponse(request.getFilename(), -1);
+			InfoResponse response = new InfoResponse(request.getFilename(), -1);
+			return new InfoResponse(hMac.createHash(response.toString()), request.getFilename(), -1);
 			
 		}
 	}
@@ -160,11 +163,13 @@ public class FileServer implements IFileServer, Runnable
 		{
 			if(files.containsKey(request.getFilename()))
 			{
-				return new VersionResponse(request.getFilename(), files.get(request.getFilename()));
+				VersionResponse response = new VersionResponse(request.getFilename(), files.get(request.getFilename()));
+				return new VersionResponse(hMac.createHash(response.toString()), request.getFilename(), files.get(request.getFilename()));
 			}
 			else
 			{
-				return new VersionResponse(request.getFilename(), -1);
+				VersionResponse response = new VersionResponse(request.getFilename(), -1);
+				return new VersionResponse(hMac.createHash(response.toString()), request.getFilename(), -1);
 			}
 		}
 	}
@@ -183,7 +188,8 @@ public class FileServer implements IFileServer, Runnable
 			out.println(text);
 			out.flush();
 			out.close();
-			return new MessageResponse("File uploaded to server.");
+			MessageResponse response = new MessageResponse("File uploaded to server.");
+			return new MessageResponse(hMac.createHash(response.toString()), response.getMessage());
 		}
 	} 
 
@@ -213,28 +219,56 @@ public class FileServer implements IFileServer, Runnable
 				}
 				if (message instanceof DownloadFileRequest)
 				{
-					DownloadFileResponse response = (DownloadFileResponse)download((DownloadFileRequest)message);
+					Response response = download((DownloadFileRequest)message);
 					objectOutput.writeObject(response);
 					objectOutput.flush();
 					closeConnection();
+					System.out.println("Sent message.");
 				}
 				if (message instanceof InfoRequest)
 				{
-					InfoResponse response = (InfoResponse)info((InfoRequest)message);
+					Response response;
+					if(!hMac.verifyHash(((InfoRequest) message).gethMac(), message.toString()))
+					{
+						System.out.println("This message has been tampered with: " + message.toString());
+						response = new MessageResponse("!again");
+					}
+					else
+					{
+						response = (InfoResponse)info((InfoRequest)message);
+					}
 					objectOutput.writeObject(response);
 					objectOutput.flush();
 					closeConnection();
 				}
 				if (message instanceof UploadRequest)
 				{
-					MessageResponse response = (MessageResponse)upload((UploadRequest)message);
+					MessageResponse response;
+					if(!hMac.verifyHash(((UploadRequest) message).gethMac(), message.toString()))
+					{
+						System.out.println("This message has been tampered with: " + message.toString());
+						response = new MessageResponse("!again");
+					}
+					else
+					{
+						response = (MessageResponse)upload((UploadRequest)message);
+					}
 					objectOutput.writeObject(response);
 					objectOutput.flush();
 					closeConnection();
 				}
 				if (message instanceof VersionRequest)
 				{
-					VersionResponse response = (VersionResponse)version((VersionRequest)message);
+					Response response;
+					if(!hMac.verifyHash(((VersionRequest) message).gethMac(), message.toString()))
+					{
+						System.out.println("This message has been tampered with: " + message.toString());
+						response = new MessageResponse("!again");
+					}
+					else
+					{
+						response = (VersionResponse)version((VersionRequest)message);
+					}
 					objectOutput.writeObject(response);
 					objectOutput.flush();
 					closeConnection();

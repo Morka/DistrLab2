@@ -17,10 +17,18 @@ public class InfoResponse implements Response {
 
 	private final String filename;
 	private final long size;
+	private final String hMac;
 
 	public InfoResponse(String filename, long size) {
 		this.filename = filename;
 		this.size = size;
+		this.hMac = "";
+	}
+	
+	public InfoResponse(String hMac, String filename, long size) {
+		this.filename = filename;
+		this.size = size;
+		this.hMac = hMac;
 	}
 
 	public String getFilename() {
@@ -34,5 +42,10 @@ public class InfoResponse implements Response {
 	@Override
 	public String toString() {
 		return String.format("!info %s %d", filename, size);
+	}
+
+	public String gethMac()
+	{
+		return hMac;
 	}
 }

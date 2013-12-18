@@ -19,12 +19,17 @@ public class DownloadFileRequest implements Request {
 	private final DownloadTicket ticket;
 	private final String hMac;
 
+	public DownloadFileRequest(DownloadTicket ticket) {
+		this.hMac = "";
+		this.ticket = ticket;
+	}
+	
 	public DownloadFileRequest(String hMac, DownloadTicket ticket) {
 		this.hMac = hMac;
 		this.ticket = ticket;
 	}
 
-	public String getHMac() 
+	public String gethMac() 
 	{
 		return hMac;
 	}

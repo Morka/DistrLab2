@@ -31,6 +31,11 @@ public class ListResponse implements Response {
 		return hMac;
 	}
 
+	public ListResponse(Set<String> fileNames) {
+		this.fileNames = Collections.unmodifiableSet(new LinkedHashSet<String>(fileNames));
+		this.hMac = "";
+	}
+	
 	public ListResponse(String hMac, Set<String> fileNames) {
 		this.fileNames = Collections.unmodifiableSet(new LinkedHashSet<String>(fileNames));
 		this.hMac = hMac;

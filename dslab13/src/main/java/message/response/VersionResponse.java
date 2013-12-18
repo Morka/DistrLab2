@@ -17,10 +17,18 @@ public class VersionResponse implements Response {
 
 	private final String filename;
 	private final int version;
+	private final String hMac;
 
 	public VersionResponse(String filename, int version) {
 		this.filename = filename;
 		this.version = version;
+		this.hMac = "";
+	}
+	
+	public VersionResponse(String hMac, String filename, int version) {
+		this.filename = filename;
+		this.version = version;
+		this.hMac = hMac;
 	}
 
 	public String getFilename() {
@@ -34,5 +42,10 @@ public class VersionResponse implements Response {
 	@Override
 	public String toString() {
 		return String.format("!version %s %d", filename, version);
+	}
+
+	public String gethMac()
+	{
+		return hMac;
 	}
 }

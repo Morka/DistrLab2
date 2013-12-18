@@ -181,7 +181,7 @@ public class ClientCli implements IClientCli
 		
 		try
 		{
-			Response r = (Response) objectInput.readObject();
+			Response r = (Response) objectInput.readObject(); 
 			if(r instanceof MessageResponse)
 			{
 				return r;
@@ -199,7 +199,6 @@ public class ClientCli implements IClientCli
 
 				oos.writeObject(fileRequest);
 				oos.flush();
-
 				Response fileResponse = (Response) ois.readObject();
 				if(fileResponse instanceof MessageResponse)
 				{

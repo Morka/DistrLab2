@@ -208,9 +208,10 @@ public class Proxy implements IProxy, Runnable
 								}
 								if(response instanceof MessageResponse)
 								{
-									System.out.println("Response from Fileserver: " + response.toString());
-									oos.writeObject(listRequest);
-									oos.flush();
+									if(((MessageResponse)response).getMessage().equals("!again"))
+									{
+										return list();
+									}
 								}
 							} 
 							catch (ClassNotFoundException e)
@@ -244,59 +245,103 @@ public class Proxy implements IProxy, Runnable
 		{
 			synchronized(readQuorum)
 			{
-				for (FileServerInfo i : readQuorum.values()) {
+				for (FileServerInfo i : readQuorum.values())
+				{
 					// Request Info if FileServer has File
-					try {
+					try 
+					{
 						// ------------------ Info ---------------------
 						Socket socket = new Socket(i.getAddress(),i.getPort());
 						ObjectOutputStream out = new ObjectOutputStream(socket.getOutputStream());
 						ObjectInputStream in = new ObjectInputStream(socket.getInputStream());
-						InfoRequest info = new InfoRequest(request.getFilename());
+						InfoRequest infoTmp = new InfoRequest(request.getFilename());
+						InfoRequest info = new InfoRequest(hMac.createHash(infoTmp.toString()),request.getFilename());
 						out.writeObject(info);
 						out.flush();
 						// One Line is received and passed along to the Shell Commands:
-						InfoResponse inforesponse = (InfoResponse)in.readObject();
-						if (inforesponse.getSize() == -1) {
-							// File does not exist on FileServer.
+						Response response = (Response)in.readObject();
+						if(response instanceof MessageResponse)
+						{
+							if(!hMac.verifyHash(((MessageResponse) response).gethMac(), response.toString()))
+							{
+								System.out.println("This message has been tampered with: " + response.toString());
+							}
+							if(response.toString().equals("!again"))
+							{
+								return download(request); // TODO check for endless
+							}
+						}
+						else
+						{
+							InfoResponse inforesponse = (InfoResponse)response;
+							if(!hMac.verifyHash(inforesponse.gethMac(), inforesponse.toString()))
+							{
+								System.out.println("This message has been tampered with: " + inforesponse.toString());
+							}
+							if (inforesponse.getSize() == -1) {
+								// File does not exist on FileServer.
+								in.close();
+								out.close();
+								socket.close();
+								continue;
+							}
+							fileSize = ((InfoResponse)inforesponse).getSize();
+
 							in.close();
 							out.close();
 							socket.close();
-							continue;
-						}
-						fileSize = ((InfoResponse)inforesponse).getSize();
-						in.close();
-						out.close();
-						socket.close();
-
-						// if yes save Version and Fileserver
-						// ------------------ Version ------------------
-						Socket socket2 = new Socket(i.getAddress(),i.getPort());
-						ObjectOutputStream out2 = new ObjectOutputStream(socket2.getOutputStream());
-						ObjectInputStream in2 = new ObjectInputStream(socket2.getInputStream());
-						VersionRequest versionrequest = new VersionRequest(request.getFilename());
-						out2.writeObject(versionrequest);
-						out2.flush();
-						// One Line is received and passed along to the Shell Commands:
-						VersionResponse versionresponse = (VersionResponse)in2.readObject();
-						int tmp = versionresponse.getVersion();
-						// Take Fileserver with highest Version
-						if (tmp == version) {
-							if (i.getUsage() < usage) {
-								version = tmp;
-								usage = i.getUsage();
-								address = i.getAddress();
-								port = i.getPort();
+							
+							// if yes save Version and Fileserver
+							// ------------------ Version ------------------
+							Socket socket2 = new Socket(i.getAddress(),i.getPort());
+							ObjectOutputStream out2 = new ObjectOutputStream(socket2.getOutputStream());
+							ObjectInputStream in2 = new ObjectInputStream(socket2.getInputStream());
+							VersionRequest versionTmp = new VersionRequest(request.getFilename());
+							VersionRequest versionRequest = new VersionRequest(hMac.createHash(versionTmp.toString()), request.getFilename());
+							out2.writeObject(versionRequest);
+							out2.flush();
+							// One Line is received and passed along to the Shell Commands:
+							response = (Response)in2.readObject();
+							if(response instanceof MessageResponse)
+							{
+								if(!hMac.verifyHash(((MessageResponse) response).gethMac(), response.toString()))
+								{
+									System.out.println("This message has been tampered with: " + response.toString());
+								}
+								if(response.toString().equals("!again"))
+								{
+									out.writeObject(versionRequest);
+									out.flush();
+								}
 							}
+							else
+							{
+								VersionResponse versionResponse = (VersionResponse)response;
+								if(!hMac.verifyHash(versionResponse.gethMac(), versionResponse.toString()))
+								{
+									System.out.println("This message has been tampered with: " + versionResponse.toString());
+								}
+								int tmp = versionResponse.getVersion();
+								// Take Fileserver with highest Version
+								if (tmp == version) {
+									if (i.getUsage() < usage) {
+										version = tmp;
+										usage = i.getUsage();
+										address = i.getAddress();
+										port = i.getPort();
+									}
+								}
+								if (tmp > version) {
+									version = tmp;
+									usage = i.getUsage();
+									address = i.getAddress();
+									port = i.getPort();					
+								}
+							}
+							in2.close();
+							out2.close();
+							socket2.close();
 						}
-						if (tmp > version) {
-							version = tmp;
-							usage = i.getUsage();
-							address = i.getAddress();
-							port = i.getPort();					
-						}
-						in2.close();
-						out2.close();
-						socket2.close();
 					} catch (ClassNotFoundException e) {
 						// TODO Auto-generated catch block
 						e.printStackTrace();
@@ -328,8 +373,10 @@ public class Proxy implements IProxy, Runnable
 					 * socket.close(); } catch (ClassNotFoundException e) {
 					 * e.printStackTrace(); }
 					 */
-					synchronized (users) {
-						if (fileSize > users.get(username).getCredits()) {
+					synchronized (users) 
+					{
+						if (fileSize > users.get(username).getCredits()) 
+						{
 							return new MessageResponse(
 									"The file requires "
 											+ String.valueOf(fileSize)
@@ -349,7 +396,9 @@ public class Proxy implements IProxy, Runnable
 						return new DownloadTicketResponse(ticket);
 					}
 				}
-			} else {
+			} 
+			else 
+			{
 				return new MessageResponse(
 						"The file you wanted to download doesn't exist");
 			}
@@ -395,7 +444,8 @@ public class Proxy implements IProxy, Runnable
 				{
 					for(FileServerInfo f : writeQuorum.values())
 					{
-						UploadRequest updatedRequest = new UploadRequest("", request.getFilename(), version, request.getContent());
+						UploadRequest tmp = new UploadRequest("", request.getFilename(), version, request.getContent());
+						UploadRequest updatedRequest = new UploadRequest(hMac.createHash(tmp.toString()), tmp.getFilename(), tmp.getVersion(), tmp.getContent());
 						Socket socket = new Socket(f.getAddress(), f.getPort());
 						ObjectOutputStream oos = new ObjectOutputStream(socket.getOutputStream());
 						oos.flush();
@@ -404,6 +454,24 @@ public class Proxy implements IProxy, Runnable
 
 						oos.writeObject(updatedRequest);
 						oos.flush();
+
+						try
+						{
+							MessageResponse response = (MessageResponse) ois.readObject();
+							if(!hMac.verifyHash(response.gethMac(), response.toString()))
+							{
+								System.out.println("This message has been tampered with: " + response.toString());
+							}
+							if(response.getMessage().equals("!again"))
+							{
+								return upload(request);
+							}
+						} 
+						catch (ClassNotFoundException e)
+						{
+							// TODO Auto-generated catch block
+							e.printStackTrace();
+						}
 
 						long fileSize = s.length();
 						synchronized(users)
@@ -585,8 +653,6 @@ public class Proxy implements IProxy, Runnable
 				break;
 			}
 		}
-		//System.out.println("Read: " + readQuorum.size());
-		//System.out.println("Write: " + writeQuorum.size());
 	}
 
 	private int getVersionNumberFromFileServer(String filename, FileServerInfo info)
@@ -598,11 +664,29 @@ public class Proxy implements IProxy, Runnable
 			ObjectOutputStream oos = new ObjectOutputStream(socket.getOutputStream());
 			oos.flush();
 			ObjectInputStream ois = new ObjectInputStream(socket.getInputStream());
-			VersionRequest request = new VersionRequest(filename);
+			VersionRequest tmp = new VersionRequest(filename);
+			VersionRequest request = new VersionRequest(hMac.createHash(tmp.toString()), filename);
 			oos.writeObject(request);
 			oos.flush();
-			VersionResponse response = (VersionResponse)ois.readObject();
-			version = response.getVersion();
+			Response response = (Response)ois.readObject();
+			if (response instanceof MessageResponse)
+			{
+				System.out.println(((MessageResponse)response).gethMac());
+				System.out.println(response.toString());
+				if (!hMac.verifyHash(((MessageResponse)response).gethMac(), response.toString())) 
+				{
+					System.out.println("This message has been tampered with: " + response.toString());
+				}
+				if (response.toString().equals("!again"))
+				{
+					oos.writeObject(request);
+					oos.flush();
+				}
+			}
+			if (response instanceof VersionResponse)
+			{
+				version = ((VersionResponse) response).getVersion();
+			}
 			oos.close();
 			ois.close();
 			socket.close();

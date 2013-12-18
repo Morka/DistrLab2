@@ -20,6 +20,11 @@ public class ListRequest implements Request {
 	private static final long serialVersionUID = -3772629665574053670L;
 	private final String hMac;
 	
+	public ListRequest()
+	{
+		this.hMac = "";
+	}
+	
 	public ListRequest(String hMac)
 	{
 		this.hMac = hMac;

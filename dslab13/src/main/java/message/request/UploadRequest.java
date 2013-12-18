@@ -21,6 +21,13 @@ public class UploadRequest implements Request {
 	private final int version;
 	private final byte[] content;
 
+	public UploadRequest(String filename, int version, byte[] content) {
+		this.hMac = "";
+		this.filename = filename;
+		this.version = version;
+		this.content = content;
+	}
+	
 	public UploadRequest(String hMac, String filename, int version, byte[] content) {
 		this.hMac = hMac;
 		this.filename = filename;
@@ -42,11 +49,10 @@ public class UploadRequest implements Request {
 
 	@Override
 	public String toString() {
-		return String.format("%s !upload %s %d %s", getHMac(), getFilename(), getVersion(), new String(getContent(), CHARSET));
+		return String.format("!upload %s %d %s", getFilename(), getVersion(), new String(getContent(), CHARSET));
 	}
 
-	private String getHMac()
-	{
+	public String gethMac() {
 		return hMac;
 	}
 }
