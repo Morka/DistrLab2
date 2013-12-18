@@ -10,7 +10,6 @@ import javax.crypto.spec.SecretKeySpec;
 
 import java.security.InvalidAlgorithmParameterException;
 import java.security.InvalidKeyException;
-import java.security.Key;
 import java.security.NoSuchAlgorithmException;
 
 public class AESChannel implements Channel {
@@ -22,20 +21,20 @@ public class AESChannel implements Channel {
 		this.secretKey = secretKey;
 	}
 
-	public byte[] encode(String stringToEncrypt, Key key) {
-		return this.encode(stringToEncrypt.getBytes(), key);
+	public byte[] encode(String stringToEncrypt) {
+		return this.encode(stringToEncrypt.getBytes());
 	}
 
 	/**
 	 * Takes a DECODED string an decrypts it
 	 * */
 
-	public byte[] decode(String stringToDecrypt, Key key) {
-		return this.decode(stringToDecrypt.getBytes(), key);
+	public byte[] decode(String stringToDecrypt) {
+		return this.decode(stringToDecrypt.getBytes());
 	}
 
 	@Override
-	public byte[] encode(byte[] bytesToEncrypt, Key key) {
+	public byte[] encode(byte[] bytesToEncrypt) {
 		SecretKey secretKey = null;
 		IvParameterSpec ivSpec = null;
 		try {
@@ -79,7 +78,7 @@ public class AESChannel implements Channel {
 	}
 
 	@Override
-	public byte[] decode(byte[] bytesToDecrypt, Key key) {
+	public byte[] decode(byte[] bytesToDecrypt) {
 		IvParameterSpec ivSpec = null;
 		SecretKey skey = null;
 

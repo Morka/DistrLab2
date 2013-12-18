@@ -22,6 +22,7 @@ import message.response.LoginResponseHandshake;
 
 public class LoginHandler {
 	
+	private final String B64 = "a-zA-Z0-9/+"; 
 	private Base64Channel base64Channel;
 	private byte[] ivParam;
 	private byte[] secretKey;
@@ -33,16 +34,16 @@ public class LoginHandler {
 	}
 	
 	private byte[] decodeAndDecrypt(String toDeDe){
-		Channel rsaChannel = new RSAChannel();
-		byte[] decoded = this.base64Channel.decode(toDeDe,null);
-		return rsaChannel.decode(decoded, ProxyMain.privateKey);
+		Channel rsaChannel = new RSAChannel(ProxyMain.privateKey);
+		byte[] decoded = this.base64Channel.decode(toDeDe);
+		return rsaChannel.decode(decoded);
 	}
 	
 	private String encryptAndEncode(String toEnEn, PublicKey publicKey){
-		Channel rsaChannel = new RSAChannel();
+		Channel rsaChannel = new RSAChannel(publicKey);
 		
-		byte[] encrypted = rsaChannel.encode(toEnEn, publicKey);
-		return new String( this.base64Channel.encode(encrypted, null));
+		byte[] encrypted = rsaChannel.encode(toEnEn);
+		return new String( this.base64Channel.encode(encrypted));
 	}
 	
 	/**
@@ -50,19 +51,26 @@ public class LoginHandler {
 	 * */
 
 	public LoginResponseHandshake sendBackHandshake(LoginRequestHandshake loginRequest){
-			
 		byte[] clientChallenge = this.decodeAndDecrypt(loginRequest.getPassword()); //decoded, decrypted (NOT decoded again!!!)
 		byte[] username = this.decodeAndDecrypt(loginRequest.getUsername()); //decoded, decrypted (NOT decoded again!!!)
 		byte[] proxyChallenge = this.createSecureNumber(); //encoded;
 		byte[] ivParamEncoded = this.createIVParameter(); //encoded;
 		byte[] secretKeyEncoded = this.createSecretKey(); //encoded; 
 		
-		this.usernameDecoded = new String(base64Channel.decode(username, null)); //TODO: ATTENTION! is new String applicable here??
+		
+		
+		this.usernameDecoded = new String(base64Channel.decode(username)); //TODO: ATTENTION! is new String applicable here??
+		
+		assert this.usernameDecoded.matches("["+B64+"]{1,24}");
 		
 		PublicKey publicKey = this.importPublicKey(this.usernameDecoded);
 		
-		String encryptedAndEncodedMessage = encryptAndEncode("!ok " + new String(clientChallenge) + " " + new String(proxyChallenge) + " " + new String(secretKeyEncoded) + " "
-				+ new String(ivParamEncoded), publicKey); //Encoded, encrypted, encoded
+		String okMessage = "!ok " + new String(clientChallenge) + " " + new String(proxyChallenge) + " " + new String(secretKeyEncoded) + " "
+				+ new String(ivParamEncoded);
+		
+		assert okMessage.matches("!ok ["+B64+"]{43}= ["+B64+"]{43}= ["+B64+"]{43}= ["+B64+"]{22}==");
+		
+		String encryptedAndEncodedMessage = encryptAndEncode(okMessage, publicKey); //Encoded, encrypted, encoded
 		
 		LoginResponseHandshake loginResponse = new LoginResponseHandshake(encryptedAndEncodedMessage);
 		
@@ -98,7 +106,7 @@ public class LoginHandler {
 		SecureRandom secureRandom = new SecureRandom(); 
 		secureRandom.nextBytes(randomNumber);
 		
-		secureRandomNumber = this.base64Channel.encode(randomNumber, null);
+		secureRandomNumber = this.base64Channel.encode(randomNumber);
 		
 		this.proxyChallenge = secureRandomNumber;
 		
@@ -130,7 +138,7 @@ public class LoginHandler {
 		this.secretKey = key.getEncoded();
 		
 
-		return base64Channel.encode(secretKey, null); //ATTENTION
+		return base64Channel.encode(secretKey); //ATTENTION
 	}
 	
 	private byte[] createIVParameter(){
@@ -138,7 +146,7 @@ public class LoginHandler {
 	
 		this.ivParam = ivParamSpec.getIV();
 		
-		byte[] ivParameter = base64Channel.encode(this.ivParam, null);
+		byte[] ivParameter = base64Channel.encode(this.ivParam);
 		
 		return ivParameter;
 	}

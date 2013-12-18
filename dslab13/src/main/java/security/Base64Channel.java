@@ -1,6 +1,5 @@
 package security;
 
-import java.security.Key;
 
 import org.bouncycastle.util.encoders.Base64;
 
@@ -17,7 +16,7 @@ public class Base64Channel implements Channel{
 		return new String(base64Message);
 	}*/
 	
-	public byte[] encode(byte[] input, Key key){
+	public byte[] encode(byte[] input){
 		byte[] base64Message;
 	
 		base64Message = Base64.encode(input);
@@ -25,17 +24,17 @@ public class Base64Channel implements Channel{
 		return base64Message;
 	}
 	
-	public byte[] decode(String encodedMessage, Key key){
-		return this.decode(encodedMessage.getBytes(), key);
+	public byte[] decode(String encodedMessage){
+		return this.decode(encodedMessage.getBytes());
 	}
 
 	@Override
-	public byte[] encode(String toEncode, Key key) {
-		return this.encode(toEncode.getBytes(), key);
+	public byte[] encode(String toEncode) {
+		return this.encode(toEncode.getBytes());
 	}
 
 	@Override
-	public byte[] decode(byte[] toDecode, Key key) {
+	public byte[] decode(byte[] toDecode) {
 		byte[]decodedMessage;
 		
 		decodedMessage = Base64.decode(toDecode);

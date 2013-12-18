@@ -9,7 +9,6 @@ import java.io.FileNotFoundException;
 import java.io.FileReader;
 import java.io.IOException;
 import java.io.InputStream;
-import java.io.InputStreamReader;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.io.OutputStream;
@@ -19,7 +18,6 @@ import java.net.SocketException;
 import java.net.UnknownHostException;
 import java.security.KeyPair;
 import java.security.PrivateKey;
-import java.util.ArrayList;
 
 import message.Request;
 import message.Response;
@@ -36,7 +34,6 @@ import message.request.UploadRequest;
 import message.response.DownloadFileResponse;
 import message.response.DownloadTicketResponse;
 import message.response.LoginResponse;
-import message.response.LoginResponse.Type;
 import message.response.LoginResponseHandshake;
 import message.response.MessageResponse;
 import model.DownloadTicket;
@@ -54,6 +51,8 @@ import cli.Shell;
 import client.IClientCli;
 
 public class ClientCli implements IClientCli {
+	private final String B64 = "a-zA-Z0-9/+";
+	
 	private Shell shell;
 	private Config config;
 	private Socket socket;
@@ -95,17 +94,14 @@ public class ClientCli implements IClientCli {
 	}
 
 	private void sendToServer(Request request) throws IOException {
-		// TODO: Does not throw a customized Exception.
-		// The encryption code can be put here later on.
-
 		byte[] toSend = this.serialize(request);
 
 		if (this.aesChannel == null && request instanceof LoginRequest) {
 			this.objectOutput.writeObject(toSend);
 			this.objectOutput.flush();
 		} else {
-			byte[] encrypted = aesChannel.encode(toSend, null);
-			encrypted = base64Channel.encode(encrypted, null);
+			byte[] encrypted = aesChannel.encode(toSend);
+			encrypted = base64Channel.encode(encrypted);
 			this.objectOutput.writeObject(encrypted);
 			this.objectOutput.flush();
 		}
@@ -130,8 +126,8 @@ public class ClientCli implements IClientCli {
 			if (this.isLoggedIn) { // is aes Encrypted
 				byte[] receive = (byte[])this.objectInput.readObject();
 				System.out.println(new String(receive));
-				receive = this.base64Channel.decode(receive, null);
-				byte[] decrypted = this.aesChannel.decode(receive, null);
+				receive = this.base64Channel.decode(receive);
+				byte[] decrypted = this.aesChannel.decode(receive);
 				Response response = (Response) this.deserialize(decrypted);
 				return response;
 			} else {
@@ -155,7 +151,11 @@ public class ClientCli implements IClientCli {
 	@Command
 	public LoginResponse login(String username, String password)
 			throws IOException {
+		
+		System.out.println(username);
 
+		assert username.matches("["+B64+"]{1,24}") : "username not applicable"; //username must be b64 and between 1 and 24 charakters
+				
 		String pathToPrivateKey = config.getString("keys.dir");
 		pathToPrivateKey += "/" + username + ".pem";
 
@@ -164,19 +164,14 @@ public class ClientCli implements IClientCli {
 		LoginHandshake loginHandshake = new LoginHandshake(privateKey);
 		LoginRequestHandshake request = loginHandshake.startHandshake(username);
 
-		System.out.println("Request string: " + request.toString());
 
 		this.sendToServer(request);
-		LoginResponseHandshake loginResponse = (LoginResponseHandshake) this
-				.receiveFromServer();
+		LoginResponseHandshake loginResponse = (LoginResponseHandshake) this.receiveFromServer();
 
-		System.out.println("two way handshake");
 
-		AesProperties handshakeInfo = loginHandshake
-				.finishHandshake(loginResponse);
+		AesProperties handshakeInfo = loginHandshake.finishHandshake(loginResponse);
 
-		this.aesChannel = new AESChannel(handshakeInfo.getIvParam(),
-				handshakeInfo.getSecretKey());
+		this.aesChannel = new AESChannel(handshakeInfo.getIvParam(), handshakeInfo.getSecretKey());
 
 		LoginRequestFinalHandshake finalLoginRequest = new LoginRequestFinalHandshake(
 				handshakeInfo.getChallenge(), null);
@@ -262,7 +257,7 @@ public class ClientCli implements IClientCli {
 		this.sendToServer(request);
 
 		try {
-			Response r = (Response) objectInput.readObject();
+			Response r = (Response) this.receiveFromServer();
 			if (r instanceof MessageResponse) {
 				return r;
 			}
@@ -337,16 +332,14 @@ public class ClientCli implements IClientCli {
 				this.sendToServer(request);
 
 				try {
-					return (MessageResponse) objectInput.readObject();
+					return (MessageResponse) this.receiveFromServer();
 				} catch (SocketException se) {
 					shell.writeLine("Socket closed unexpectedly.");
 					exit();
 				} catch (EOFException eof) {
 					shell.writeLine("Socket closed unexpectedly");
 					exit();
-				} catch (ClassNotFoundException e) {
-					e.printStackTrace();
-				}
+				} 
 			} finally {
 				br.close();
 			}
@@ -363,6 +356,8 @@ public class ClientCli implements IClientCli {
 		LogoutRequest request = new LogoutRequest();
 
 		this.sendToServer(request);
+		this.isLoggedIn = false;
+		this.aesChannel = null;
 		return (MessageResponse) this.receiveFromServer();
 
 	}

@@ -13,10 +13,11 @@ import javax.crypto.IllegalBlockSizeException;
 import javax.crypto.NoSuchPaddingException;
 
 public class RSAChannel implements Channel{
-	//private Base64Channel base64Channel;
 
-	public RSAChannel(){
-		//base64Channel = new Base64Channel();
+	private Key key;
+	
+	public RSAChannel(Key key){
+		this.key = key;
 	}
 
 	/**
@@ -28,11 +29,11 @@ public class RSAChannel implements Channel{
 	 * @return byte array of the encrypted String. make sure it is encoded via base64 afterwards 
 	 * */
 	
-	public byte[] encode(String stringToEncrypt, Key key){
-		return this.encode(stringToEncrypt.getBytes(), key);
+	public byte[] encode(String stringToEncrypt){
+		return this.encode(stringToEncrypt.getBytes());
 	}
 	
-	public byte[] encode(byte[] bytesToEncrypt, Key key){
+	public byte[] encode(byte[] bytesToEncrypt){
 		PublicKey publicKey = (PublicKey)key;
 
 		//String encryptedAndEncoded = "";
@@ -72,13 +73,13 @@ public class RSAChannel implements Channel{
 	 * 		  key: private key for decryption
 	 * */
 
-	public byte[] decode(String stringToDecrypt, Key key){
+	public byte[] decode(String stringToDecrypt){
 
 		//bytesToDecrypt = (base64Channel.decode(stringToDecrypt, null));
-		return this.decode(stringToDecrypt.getBytes(), key);
+		return this.decode(stringToDecrypt.getBytes());
 	}
 	
-	public byte[] decode(byte[] bytesToDecrypt, Key key){
+	public byte[] decode(byte[] bytesToDecrypt){
 		PrivateKey privateKey = (PrivateKey)key;
 
 		//bytesToDecrypt = (base64Channel.decode(stringToDecrypt, null));

@@ -6,54 +6,45 @@ import java.io.IOException;
 import java.security.PrivateKey;
 import java.security.PublicKey;
 import java.security.SecureRandom;
-import java.util.ArrayList;
 
 import org.bouncycastle.openssl.PEMReader;
-
-import proxy.ProxyMain;
-
-import security.AESChannel;
 import security.Base64Channel;
 import security.Channel;
 import security.RSAChannel;
+import util.Config;
 
 import message.request.LoginRequestHandshake;
 import message.response.LoginResponseHandshake;
 
 public class LoginHandshake {
 
+	private final String B64 = "a-zA-Z0-9/+";
 	private Channel base64Channel;
 	private final PrivateKey privateKey;
 
 	public LoginHandshake(PrivateKey privateKey) {
-		base64Channel = new Base64Channel();
+		this.base64Channel = new Base64Channel();
 		this.privateKey = privateKey;
 	}
+	
+	//TODO: does it make sense to assert the overall request
 
+	
 	public LoginRequestHandshake startHandshake(String username) {
 
-		byte[] encodedUsername = this.base64Channel.encode(username.getBytes(),
-				null); // encoded
+		byte[] encodedUsername = this.base64Channel.encode(username.getBytes()); // encoded
 		byte[] encodedClientChallenge = this.createClientChallenge(); // encoded
 		PublicKey publicKey = this.importPublicKeyAuctionServer();
 
-		Channel rsaChannel = new RSAChannel();
+		Channel rsaChannel = new RSAChannel(publicKey);
 
-		encodedUsername = rsaChannel.encode(encodedUsername, publicKey); // encoded
-		// and
-		// encrypted
-		encodedClientChallenge = rsaChannel.encode(encodedClientChallenge,
-				publicKey); // encoded and encrypted
+		encodedUsername = rsaChannel.encode(encodedUsername); // encode and encrypted
+		encodedClientChallenge = rsaChannel.encode(encodedClientChallenge); // encoded and encrypted
 
-		String encodedAndEncryptedUsername = new String(base64Channel.encode(
-				encodedUsername, null)); // encoded, encrypted, encoded
-		String encodedAndEncryptedClientChallenge = new String(
-				base64Channel.encode(encodedClientChallenge, null)); // encoded,
-		// encrypted,
-		// encoded
+		String encodedAndEncryptedUsername = new String(base64Channel.encode(encodedUsername)); // encoded, encrypted, encoded
+		String encodedAndEncryptedClientChallenge = new String(base64Channel.encode(encodedClientChallenge)); // encoded, encrypted, encoded
 
-		return new LoginRequestHandshake(encodedAndEncryptedUsername,
-				encodedAndEncryptedClientChallenge);
+		return new LoginRequestHandshake(encodedAndEncryptedUsername, encodedAndEncryptedClientChallenge);
 	}
 
 	public AesProperties finishHandshake(LoginResponseHandshake loginResponse){
@@ -61,26 +52,20 @@ public class LoginHandshake {
 		byte[] secretKey = null;
 
 		String okMessage = loginResponse.toString();
-		byte[] okMessageDecoded = this.base64Channel.decode(okMessage, null);
+		byte[] okMessageDecoded = this.base64Channel.decode(okMessage);
 
-		Channel rsaChannel = new RSAChannel();
+		Channel rsaChannel = new RSAChannel(this.privateKey);
 
-		okMessage = new String(rsaChannel.decode(okMessageDecoded, this.privateKey));
-
-		System.out.println("Finish Handshake, ok message: " + okMessage);
+		okMessage = new String(rsaChannel.decode(okMessageDecoded));
 
 		String[] splittedMessage = null;
 
 		if(okMessage.startsWith("!ok")){
 			splittedMessage = okMessage.split(" ");
-
-			System.out.println("splitted Message length: " + splittedMessage.length);
-			System.out.println("splitted Message 5: *"+ splittedMessage[4] + "*");
-
 			if(splittedMessage.length == 5){
 
-				ivParam = this.base64Channel.decode(splittedMessage[4], null);
-				secretKey = this.base64Channel.decode(splittedMessage[3], null);
+				ivParam = this.base64Channel.decode(splittedMessage[4]);
+				secretKey = this.base64Channel.decode(splittedMessage[3]);
 			}
 			else{
 				System.err.println("Error: ok Message isn't formatted correctly");
@@ -89,6 +74,8 @@ public class LoginHandshake {
 		
 		//ivParam = this.base64Channel.decode(ivParam, null);
 		//secretKey = this.base64Channel.decode(secretKey, null);
+		
+		assert splittedMessage[2].matches("["+B64+"]{43}=") : "3rd message";
 		
 		AesProperties aesProperties = new AesProperties(ivParam, secretKey, splittedMessage[2]);
 		
@@ -107,16 +94,16 @@ public class LoginHandshake {
 		SecureRandom secureRandom = new SecureRandom();
 		secureRandom.nextBytes(randomNumber);
 
-		byte[] clientChallenge = this.base64Channel.encode(randomNumber, null);
+		byte[] clientChallenge = this.base64Channel.encode(randomNumber);
 
 		return clientChallenge;
 
 	}
 
 	private PublicKey importPublicKeyAuctionServer() {
-		// TODO: Fix static import of keys!
+		Config config = new Config("client");
+		String pathToPublicKey = config.getString("proxy.key");
 
-		String pathToPublicKey = "/home/nief/Documents/Studium/6S_WS13/Distributed Systems/Lab3/DistrLab2/dslab13/keys/proxy.pub.pem";
 		PublicKey publicKey = null;
 		PEMReader in = null;
 		try {
