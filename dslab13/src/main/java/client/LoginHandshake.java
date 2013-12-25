@@ -21,6 +21,7 @@ public class LoginHandshake {
 	private final String B64 = "a-zA-Z0-9/+";
 	private Channel base64Channel;
 	private final PrivateKey privateKey;
+	private byte[] clientChallenge;
 
 	public LoginHandshake(PrivateKey privateKey) {
 		this.base64Channel = new Base64Channel();
@@ -28,7 +29,6 @@ public class LoginHandshake {
 	}
 	
 	//TODO: does it make sense to assert the overall request
-
 	
 	public LoginRequestHandshake startHandshake(String username) {
 
@@ -41,8 +41,8 @@ public class LoginHandshake {
 		encodedUsername = rsaChannel.encode(encodedUsername); // encode and encrypted
 		encodedClientChallenge = rsaChannel.encode(encodedClientChallenge); // encoded and encrypted
 
-		String encodedAndEncryptedUsername = new String(base64Channel.encode(encodedUsername)); // encoded, encrypted, encoded
-		String encodedAndEncryptedClientChallenge = new String(base64Channel.encode(encodedClientChallenge)); // encoded, encrypted, encoded
+		String encodedAndEncryptedUsername = new String(this.base64Channel.encode(encodedUsername)); // encoded, encrypted, encoded
+		String encodedAndEncryptedClientChallenge = new String(this.base64Channel.encode(encodedClientChallenge)); // encoded, encrypted, encoded
 
 		return new LoginRequestHandshake(encodedAndEncryptedUsername, encodedAndEncryptedClientChallenge);
 	}
@@ -62,13 +62,21 @@ public class LoginHandshake {
 
 		if(okMessage.startsWith("!ok")){
 			splittedMessage = okMessage.split(" ");
+			
 			if(splittedMessage.length == 5){
-
+				
+				//return true if the client challenge that came back is the one that was sent
+				if(!splittedMessage[1].equals(new String(this.clientChallenge))){
+					System.err.println("Error: clientChallenge is not correct");
+					return null;
+				}
+				
 				ivParam = this.base64Channel.decode(splittedMessage[4]);
 				secretKey = this.base64Channel.decode(splittedMessage[3]);
 			}
 			else{
 				System.err.println("Error: ok Message isn't formatted correctly");
+				return null;
 			}
 		}
 		
@@ -94,7 +102,7 @@ public class LoginHandshake {
 		SecureRandom secureRandom = new SecureRandom();
 		secureRandom.nextBytes(randomNumber);
 
-		byte[] clientChallenge = this.base64Channel.encode(randomNumber);
+		this.clientChallenge = this.base64Channel.encode(randomNumber);
 
 		return clientChallenge;
 

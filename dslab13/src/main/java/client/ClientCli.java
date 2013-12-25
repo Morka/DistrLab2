@@ -34,6 +34,7 @@ import message.request.UploadRequest;
 import message.response.DownloadFileResponse;
 import message.response.DownloadTicketResponse;
 import message.response.LoginResponse;
+import message.response.LoginResponse.Type;
 import message.response.LoginResponseHandshake;
 import message.response.MessageResponse;
 import model.DownloadTicket;
@@ -168,8 +169,10 @@ public class ClientCli implements IClientCli {
 		this.sendToServer(request);
 		LoginResponseHandshake loginResponse = (LoginResponseHandshake) this.receiveFromServer();
 
-
 		AesProperties handshakeInfo = loginHandshake.finishHandshake(loginResponse);
+		if(handshakeInfo == null){
+			return new LoginResponse(Type.WRONG_CREDENTIALS);
+		}
 
 		this.aesChannel = new AESChannel(handshakeInfo.getIvParam(), handshakeInfo.getSecretKey());
 
@@ -265,15 +268,12 @@ public class ClientCli implements IClientCli {
 				DownloadTicketResponse response = (DownloadTicketResponse) r;
 				DownloadTicket ticket = response.getTicket();
 
-				Socket downloadSocket = new Socket(ticket.getAddress(),
-						ticket.getPort());
+				Socket downloadSocket = new Socket(ticket.getAddress(),ticket.getPort());
 				ObjectOutputStream oos = new ObjectOutputStream(
 						downloadSocket.getOutputStream());
 				oos.flush();
-				ObjectInputStream ois = new ObjectInputStream(
-						downloadSocket.getInputStream());
-				DownloadFileRequest fileRequest = new DownloadFileRequest(
-						ticket);
+				ObjectInputStream ois = new ObjectInputStream(downloadSocket.getInputStream());
+				DownloadFileRequest fileRequest = new DownloadFileRequest(ticket);
 
 				oos.writeObject(fileRequest);
 				oos.flush();

@@ -11,7 +11,6 @@ import java.io.OutputStream;
 import java.net.InetAddress;
 import java.net.Socket;
 import java.net.SocketException;
-import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
@@ -52,7 +51,6 @@ public class Proxy implements IProxy, Runnable {
 	private ObjectInputStream objectInput;
 	private OutputStream output;
 	private ObjectOutputStream objectOutput;
-	private Socket clientSocket;
 	private String username;
 	private AtomicBoolean stop;
 	private Channel aesChannel;
@@ -71,10 +69,10 @@ public class Proxy implements IProxy, Runnable {
 			ConcurrentHashMap<Integer, FileServerInfo> serverIdentifier,
 			AtomicBoolean stop) {
 		this.base64Channel = new Base64Channel();
-		this.clientSocket = clientSocket;
 		this.users = UserData.getInstance().users;
 		this.stop = stop;
 		this.serverIdentifier = ServerData.getInstance().servers;
+		this.files = files;
 		username = "";
 		try {
 			output = clientSocket.getOutputStream();
@@ -329,13 +327,13 @@ public class Proxy implements IProxy, Runnable {
 				UserInfo info = new UserInfo(username, old.getCredits(), false);
 				users.put(username, info);
 				this.loggedIn = false;
+				this.aesChannel = null;
 				return new MessageResponse("You were logged out");
 			}
 		}
 	}
 
 	private LoginResponseHandshake loginHandshake(LoginRequestHandshake loginRequest) {
-		System.out.println("loginhandshake");
 		LoginHandler loginHandler = new LoginHandler();
 		LoginResponseHandshake loginResponse = loginHandler.sendBackHandshake(loginRequest);
 
@@ -371,8 +369,8 @@ public class Proxy implements IProxy, Runnable {
 			this.objectOutput.flush();
 		} else {
 			byte[] toSend = this.serialize(response);
-			byte[] encrypted = this.aesChannel.encode(toSend, null);
-			encrypted = this.base64Channel.encode(encrypted, null);
+			byte[] encrypted = this.aesChannel.encode(toSend);
+			encrypted = this.base64Channel.encode(encrypted);
 			this.objectOutput.writeObject(encrypted);
 			this.objectOutput.flush();
 		}
@@ -385,38 +383,14 @@ public class Proxy implements IProxy, Runnable {
 			request = (Request) this.deserialize(message);
 		} else {
 			byte[] message = (byte[]) this.objectInput.readObject();
-			message = this.base64Channel.decode(message, null);
-			byte[] decrypted = this.aesChannel.decode(message, null);
+			message = this.base64Channel.decode(message);
+			byte[] decrypted = this.aesChannel.decode(message);
 			request = (Request) this.deserialize(decrypted);
 		}
 
 		return request;
 	}
-	/*
-	 * if (username.equals("")) {
-			synchronized (users) {
-				if (users.containsKey(request.getUsername())) {
-					Config config = new Config("user");
-					if (config.getString(request.getUsername() + ".password")
-							.equals(request.getPassword())) {
-						username = request.getUsername();
-						UserInfo old = users.get(username);
-						UserInfo info = new UserInfo(username,
-								old.getCredits(), true);
-						users.put(username, info);
-						return new LoginResponse(LoginResponse.Type.SUCCESS);
-					} else {
-						return new LoginResponse(
-								LoginResponse.Type.WRONG_CREDENTIALS);
-					}
-				} else {
-					return new LoginResponse(
-							LoginResponse.Type.WRONG_CREDENTIALS);
-				}
-			}
-		} else {
-			return new LoginResponse(LoginResponse.Type.WRONG_CREDENTIALS);
-		}*/
+	
 	private Response checkIfChallengeIsOkay(Request request){
 		LoginRequestFinalHandshake loginRequest = (LoginRequestFinalHandshake)request;
 		
