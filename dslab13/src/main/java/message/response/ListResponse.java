@@ -24,9 +24,21 @@ public class ListResponse implements Response {
 	private static final long serialVersionUID = -7319020129445822795L;
 
 	private final Set<String> fileNames;
+	private final String hMac;
+
+	public String gethMac()
+	{
+		return hMac;
+	}
 
 	public ListResponse(Set<String> fileNames) {
 		this.fileNames = Collections.unmodifiableSet(new LinkedHashSet<String>(fileNames));
+		this.hMac = "";
+	}
+	
+	public ListResponse(String hMac, Set<String> fileNames) {
+		this.fileNames = Collections.unmodifiableSet(new LinkedHashSet<String>(fileNames));
+		this.hMac = hMac;
 	}
 
 	public Set<String> getFileNames() {
@@ -45,4 +57,11 @@ public class ListResponse implements Response {
 		}
 		return sb.toString();
 	}
+	
+	public String toStringSecure() 
+	{
+		return hMac + " " + this.toString();
+	}
 }
+
+

@@ -21,10 +21,18 @@ public class DownloadFileResponse implements Response {
 
 	private final DownloadTicket ticket;
 	private final byte[] content;
+	private final String hMac;
 
 	public DownloadFileResponse(DownloadTicket ticket, byte[] content) {
 		this.ticket = ticket;
 		this.content = content;
+		this.hMac = "";
+	}
+	
+	public DownloadFileResponse(String hMac, DownloadTicket ticket, byte[] content) {
+		this.ticket = ticket;
+		this.content = content;
+		this.hMac = hMac;
 	}
 
 	public DownloadTicket getTicket() {
@@ -38,5 +46,10 @@ public class DownloadFileResponse implements Response {
 	@Override
 	public String toString() {
 		return "!data " + new String(getContent(), CHARSET);
+	}
+
+	public String gethMac()
+	{
+		return hMac;
 	}
 }

@@ -23,17 +23,14 @@ public class FileServerListener implements Runnable
 
 	private ConcurrentHashMap<Integer, FileServerInfo> serverIdentifier;
 	
-	//private HashSet<String> files;
-
-	public FileServerListener(DatagramSocket socket, int timeout, int checkPeriod, AtomicBoolean stop, HashSet<String> files, ConcurrentHashMap<Integer, FileServerInfo> s)
+	public FileServerListener(DatagramSocket socket, int timeout, int checkPeriod, AtomicBoolean stop)
 	{
 		this.socket = socket;
 		this.timeout = timeout;
 		this.checkPeriod = checkPeriod;
 		this.stop = stop;
-		//this.files = files;
 		lastOnline = new HashMap<Integer, Long>();
-		this.serverIdentifier = s;
+		this.serverIdentifier = ServerData.getInstance().servers;
 	}
 
 	@Override
@@ -72,14 +69,14 @@ public class FileServerListener implements Runnable
 		public void run() {
 			byte[] buffer;
 			while (!stop.get()) {
-				buffer = new byte[4];
+				buffer = new byte[32];
 				DatagramPacket p = new DatagramPacket(buffer, buffer.length);
 				Long current = System.currentTimeMillis();
 				try {
 					socket.receive(p);
 					InetAddress address = p.getAddress();
-					ByteBuffer wrapped = ByteBuffer.wrap(p.getData());
-					int port = wrapped.getInt();
+					String[] received = new String(p.getData(), 0, p.getLength()).split(" ");
+					int port = Integer.parseInt(received[1]);
 					lastOnline.put(port, current);
 					
 					synchronized (serverIdentifier) {

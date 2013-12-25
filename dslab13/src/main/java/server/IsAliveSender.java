@@ -39,12 +39,10 @@ public class IsAliveSender implements Runnable
 			}
 
 			// Sends tcp Port of the file server to Proxy every isAlive Message.
-			ByteBuffer b = ByteBuffer.allocate(4);
-			b.putInt(tcpPort);
-			byte[] buffer = b.array();
+			byte[] buffer = String.valueOf("!alive "+tcpPort).getBytes();
 			try {
 				InetAddress address = InetAddress.getByName("localhost");
-				DatagramPacket packet = new DatagramPacket(buffer, buffer.length,address, this.proxyUdp);
+				DatagramPacket packet = new DatagramPacket(buffer, buffer.length, address, this.proxyUdp);
 				socket.send(packet);
 			} catch (UnknownHostException e) {
 				System.err.println("Error: Host InetAdress is unknown. No Connection possible.");

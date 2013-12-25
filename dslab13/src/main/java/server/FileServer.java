@@ -10,10 +10,14 @@ import java.io.ObjectOutputStream;
 import java.io.PrintWriter;
 import java.net.Socket;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Set;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import util.ChecksumUtils;
+import util.Config;
+import util.HmacHelper;
 
 import message.Request;
 import message.Response;
@@ -33,19 +37,22 @@ import message.response.InfoResponse;
 import message.response.ListResponse;
 import message.response.LoginResponse;
 import message.response.MessageResponse;
+import message.response.VersionResponse;
 import model.DownloadTicket;
 
 public class FileServer implements IFileServer, Runnable
 {
-	private HashSet<String> files;
 	private Socket socket;
 	private String directory;
 	private AtomicBoolean stop;
 	private ObjectInputStream objectInput;
 	private ObjectOutputStream objectOutput;
+	private HashMap<String, Integer> files;
+	private HmacHelper hMac;
 
-	public FileServer(HashSet<String> files, Socket socket, String directory, AtomicBoolean stop)
+	public FileServer(HashMap<String,Integer> files, Socket socket, String directory, Config config, AtomicBoolean stop)
 	{
+		hMac = new HmacHelper(config);
 		this.socket = socket;
 		this.files = files;
 		this.directory = directory;
@@ -67,7 +74,13 @@ public class FileServer implements IFileServer, Runnable
 	{
 		synchronized(files)
 		{
-			return new ListResponse(files);
+			Set<String> filenames = new HashSet<String>();
+			for(String s : files.keySet())
+			{
+				filenames.add(s);
+			}
+			ListResponse tmp = new ListResponse("", filenames);
+			return new ListResponse(hMac.createHash(tmp.toString()),filenames);
 		}
 	}
 
@@ -97,9 +110,10 @@ public class FileServer implements IFileServer, Runnable
 					String text = sb.toString();
 
 					DownloadFileResponse fileResponse = new DownloadFileResponse(ticket, text.getBytes());
-
+					
 					objectOutput.writeObject(fileResponse);
 					objectOutput.flush();
+					System.out.println("Sent file");
 					try
 					{
 						return (MessageResponse)objectInput.readObject();
@@ -127,43 +141,56 @@ public class FileServer implements IFileServer, Runnable
 	{
 		synchronized(files)
 		{
-			if(files.contains(request.getFilename()))
+			if(files.containsKey(request.getFilename()))
 			{
 				File f = new File(directory, request.getFilename());
 				if(f.exists())
 				{
-					return new InfoResponse(request.getFilename(), f.length());
+					InfoResponse response = new InfoResponse(request.getFilename(), f.length());
+					return new InfoResponse(hMac.createHash(response.toString()), request.getFilename(), f.length());
 				}
 			}
-
-			return new InfoResponse(request.getFilename(),0);
+			InfoResponse response = new InfoResponse(request.getFilename(), -1);
+			return new InfoResponse(hMac.createHash(response.toString()), request.getFilename(), -1);
+			
 		}
 	}
 
 	@Override
 	public Response version(VersionRequest request) throws IOException
 	{
-		// TODO Auto-generated method stub
-		return null;
+		synchronized(files)
+		{
+			if(files.containsKey(request.getFilename()))
+			{
+				VersionResponse response = new VersionResponse(request.getFilename(), files.get(request.getFilename()));
+				return new VersionResponse(hMac.createHash(response.toString()), request.getFilename(), files.get(request.getFilename()));
+			}
+			else
+			{
+				VersionResponse response = new VersionResponse(request.getFilename(), -1);
+				return new VersionResponse(hMac.createHash(response.toString()), request.getFilename(), -1);
+			}
+		}
 	}
 
 	@Override
 	public MessageResponse upload(UploadRequest request) throws IOException
 	{
-		File f = new File(directory, request.getFilename());
-		if(f.exists())
+		synchronized(files)
 		{
-			f.delete();
-		}
-		String text = new String(request.getContent());
-		File downloaded = new File(directory, request.getFilename());
-		downloaded.createNewFile();
+			files.put(request.getFilename(), request.getVersion());
+			String text = new String(request.getContent());
+			File downloaded = new File(directory, request.getFilename());
+			downloaded.createNewFile();
 
-		PrintWriter out = new PrintWriter(downloaded);
-		out.println(text);
-		out.flush();
-		out.close();
-		return new MessageResponse("File uploaded to server.");
+			PrintWriter out = new PrintWriter(downloaded);
+			out.println(text);
+			out.flush();
+			out.close();
+			MessageResponse response = new MessageResponse("File uploaded to server.");
+			return new MessageResponse(hMac.createHash(response.toString()), response.getMessage());
+		}
 	} 
 
 	@Override
@@ -176,28 +203,72 @@ public class FileServer implements IFileServer, Runnable
 				Request message = (Request)objectInput.readObject();
 				if (message instanceof ListRequest)
 				{
-					ListResponse response = (ListResponse)list();
+					Response response;
+					if(!hMac.verifyHash(((ListRequest) message).gethMac(), message.toString()))
+					{
+						System.out.println("This message has been tampered with: " + message.toString());
+						response = new MessageResponse("!again");
+					}
+					else
+					{
+						response = (ListResponse)list();
+					}
 					objectOutput.writeObject(response);
 					objectOutput.flush();
 					closeConnection();
 				}
 				if (message instanceof DownloadFileRequest)
 				{
-					DownloadFileResponse response = (DownloadFileResponse)download((DownloadFileRequest)message);
+					Response response = download((DownloadFileRequest)message);
 					objectOutput.writeObject(response);
 					objectOutput.flush();
 					closeConnection();
+					System.out.println("Sent message.");
 				}
 				if (message instanceof InfoRequest)
 				{
-					InfoResponse response = (InfoResponse)info((InfoRequest)message);
+					Response response;
+					if(!hMac.verifyHash(((InfoRequest) message).gethMac(), message.toString()))
+					{
+						System.out.println("This message has been tampered with: " + message.toString());
+						response = new MessageResponse("!again");
+					}
+					else
+					{
+						response = (InfoResponse)info((InfoRequest)message);
+					}
 					objectOutput.writeObject(response);
 					objectOutput.flush();
 					closeConnection();
 				}
 				if (message instanceof UploadRequest)
 				{
-					MessageResponse response = (MessageResponse)upload((UploadRequest)message);
+					MessageResponse response;
+					if(!hMac.verifyHash(((UploadRequest) message).gethMac(), message.toString()))
+					{
+						System.out.println("This message has been tampered with: " + message.toString());
+						response = new MessageResponse("!again");
+					}
+					else
+					{
+						response = (MessageResponse)upload((UploadRequest)message);
+					}
+					objectOutput.writeObject(response);
+					objectOutput.flush();
+					closeConnection();
+				}
+				if (message instanceof VersionRequest)
+				{
+					Response response;
+					if(!hMac.verifyHash(((VersionRequest) message).gethMac(), message.toString()))
+					{
+						System.out.println("This message has been tampered with: " + message.toString());
+						response = new MessageResponse("!again");
+					}
+					else
+					{
+						response = (VersionResponse)version((VersionRequest)message);
+					}
 					objectOutput.writeObject(response);
 					objectOutput.flush();
 					closeConnection();
@@ -219,7 +290,7 @@ public class FileServer implements IFileServer, Runnable
 			}
 		}
 	}
-
+	
 	private void closeConnection()
 	{
 		try

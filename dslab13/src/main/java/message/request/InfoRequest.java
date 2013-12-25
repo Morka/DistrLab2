@@ -16,9 +16,17 @@ public class InfoRequest implements Request {
 	private static final long serialVersionUID = -6085488358609044428L;
 
 	private final String filename;
+	private final String hMac;
+
+	public InfoRequest(String hMac, String filename)
+	{
+		this.filename = filename;
+		this.hMac = hMac;
+	}
 
 	public InfoRequest(String filename) {
 		this.filename = filename;
+		this.hMac = "";
 	}
 
 	public String getFilename() {
@@ -29,4 +37,9 @@ public class InfoRequest implements Request {
 	public String toString() {
 		return "!info " + getFilename();
 	}
+	
+	public String gethMac() {
+		return hMac;
+	}
 }
+

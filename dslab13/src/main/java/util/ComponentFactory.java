@@ -1,12 +1,13 @@
 package util;
 
+import proxy.IProxyCli;
+import proxy.ProxyCli;
 import cli.Shell;
 import client.ClientCli;
 import client.IClientCli;
-import proxy.IProxyCli;
-import proxy.ProxyCli;
 import server.FileServerCli;
 import server.IFileServerCli;
+import util.Config;
 
 /**
  * Provides methods for starting an arbitrary amount of various components.

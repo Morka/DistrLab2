@@ -6,6 +6,7 @@ import java.io.ByteArrayOutputStream;
 import java.io.EOFException;
 import java.io.File;
 import java.io.FileNotFoundException;
+import java.io.FileOutputStream;
 import java.io.FileReader;
 import java.io.IOException;
 import java.io.InputStream;
@@ -18,7 +19,18 @@ import java.net.SocketException;
 import java.net.UnknownHostException;
 import java.security.KeyPair;
 import java.security.PrivateKey;
+import java.util.Scanner;
+import java.util.concurrent.ExecutorService;
 
+import org.bouncycastle.openssl.PEMReader;
+import org.bouncycastle.openssl.PasswordFinder;
+
+import security.AESChannel;
+import security.Base64Channel;
+import security.Channel;
+import util.Config;
+import cli.Command;
+import cli.Shell;
 import message.Request;
 import message.Response;
 import message.request.BuyRequest;
@@ -31,27 +43,19 @@ import message.request.LoginRequestFinalHandshake;
 import message.request.LoginRequestHandshake;
 import message.request.LogoutRequest;
 import message.request.UploadRequest;
+import message.response.BuyResponse;
+import message.response.CreditsResponse;
 import message.response.DownloadFileResponse;
 import message.response.DownloadTicketResponse;
+import message.response.ListResponse;
 import message.response.LoginResponse;
-import message.response.LoginResponse.Type;
 import message.response.LoginResponseHandshake;
 import message.response.MessageResponse;
+import message.response.LoginResponse.Type;
 import model.DownloadTicket;
 
-import org.bouncycastle.openssl.PEMReader;
-import org.bouncycastle.openssl.PasswordFinder;
-
-import security.AESChannel;
-import security.Base64Channel;
-import security.Channel;
-import util.Config;
-
-import cli.Command;
-import cli.Shell;
-import client.IClientCli;
-
-public class ClientCli implements IClientCli {
+public class ClientCli implements IClientCli
+{
 	private final String B64 = "a-zA-Z0-9/+";
 	
 	private Shell shell;
@@ -65,36 +69,47 @@ public class ClientCli implements IClientCli {
 	private Channel aesChannel;
 	private Channel base64Channel;
 	private boolean isLoggedIn;
-
-	public ClientCli(Config config, Shell shell) {
+	
+	
+	public ClientCli(Config config, Shell shell)
+	{
 		this.isLoggedIn = false;
 		this.base64Channel = new Base64Channel();
 		this.config = config;
 		this.shell = shell;
-		try {
-			socket = new Socket(config.getString("proxy.host"),
-					config.getInt("proxy.tcp.port"));
+		try
+		{
+			socket = new Socket(config.getString("proxy.host"), config.getInt("proxy.tcp.port"));
 			directory = config.getString("download.dir");
 			input = socket.getInputStream();
 			objectInput = new ObjectInputStream(input);
 			output = socket.getOutputStream();
 			objectOutput = new ObjectOutputStream(output);
 			objectOutput.flush();
-		} catch (SocketException se) {
-			try {
+		}
+		catch(SocketException se)
+		{
+			try
+			{
 				shell.writeLine("Could not find server.");
 				exitWithoutConnection();
-			} catch (IOException e) {
+			} 
+			catch (IOException e)
+			{
 				e.printStackTrace();
 			}
-		} catch (UnknownHostException e) {
+		}
+		catch (UnknownHostException e)
+		{
 			e.printStackTrace();
-		} catch (IOException e) {
+		} 
+		catch (IOException e)
+		{
 			e.printStackTrace();
 		}
 	}
-
-	private void sendToServer(Request request) throws IOException {
+	
+	private void sendToServer(Request request) throws IOException{
 		byte[] toSend = this.serialize(request);
 
 		if (this.aesChannel == null && request instanceof LoginRequest) {
@@ -122,7 +137,8 @@ public class ClientCli implements IClientCli {
 		return ois.readObject();
 	}
 
-	private Response receiveFromServer() throws IOException {
+	
+	private Response receiveFromServer() throws IOException{
 		try {
 			if (this.isLoggedIn) { // is aes Encrypted
 				byte[] receive = (byte[])this.objectInput.readObject();
@@ -136,6 +152,7 @@ public class ClientCli implements IClientCli {
 				Response response = (Response) this.deserialize(receive);
 				return response;
 			}
+		
 		} catch (EOFException eof) {
 			shell.writeLine("Socket closed unexpectedly");
 			exit();
@@ -151,16 +168,22 @@ public class ClientCli implements IClientCli {
 	@Override
 	@Command
 	public LoginResponse login(String username, String password)
-			throws IOException {
-		
-		System.out.println(username);
+			throws IOException
+			{
 
 		assert username.matches("["+B64+"]{1,24}") : "username not applicable"; //username must be b64 and between 1 and 24 charakters
 				
 		String pathToPrivateKey = config.getString("keys.dir");
 		pathToPrivateKey += "/" + username + ".pem";
 
-		PrivateKey privateKey = this.readPrivateKey(pathToPrivateKey, password);
+		PrivateKey privateKey = null;
+		
+		try {
+			privateKey = this.readPrivateKey(pathToPrivateKey, password);
+		} catch (PrivateKeyException e) {
+			System.err.println(e.getMessage());
+			return new LoginResponse(Type.WRONG_CREDENTIALS);
+		}
 
 		LoginHandshake loginHandshake = new LoginHandshake(privateKey);
 		LoginRequestHandshake request = loginHandshake.startHandshake(username);
@@ -183,11 +206,9 @@ public class ClientCli implements IClientCli {
 
 		this.sendToServer(finalLoginRequest);
 		return (LoginResponse)this.receiveFromServer();
-
 	}
-
-	private PrivateKey readPrivateKey(String pathToPrivateKey,
-			final String password) {
+	
+	private PrivateKey readPrivateKey(String pathToPrivateKey, final String password) throws PrivateKeyException{
 		PEMReader in = null;
 		PrivateKey privateKey = null;
 		try {
@@ -201,90 +222,100 @@ public class ClientCli implements IClientCli {
 						}
 					});
 		} catch (FileNotFoundException e) {
-			System.err.println("ERROR: Couldnt read privateKey file");
+			throw new PrivateKeyException("ERROR: Couldnt read privateKey file");
 		}
 		try {
 			KeyPair keyPair = (KeyPair) in.readObject();
 			privateKey = keyPair.getPrivate();
 			in.close();
 		} catch (IOException ex) {
-			System.err
-					.println("ERROR: reading Private Key - most likely wrong password");
+			throw new PrivateKeyException("ERROR: reading Private Key - most likely wrong password");
 		}
-		System.out.println("Read in Proxy Private Key");
 		return privateKey;
 	}
 
 	@Override
 	@Command
-	public Response credits() throws IOException {
+	public Response credits() throws IOException
+	{
 		CreditsRequest request = new CreditsRequest();
-
+		
 		this.sendToServer(request);
-
+		
 		return this.receiveFromServer();
-
+		
 	}
 
 	@Override
 	@Command
-	public Response buy(long credits) throws IOException {
+	public Response buy(long credits) throws IOException
+	{
 		BuyRequest request = new BuyRequest(credits);
-
+		
 		this.sendToServer(request);
-
+		
 		return this.receiveFromServer();
-
+		
 	}
+
 
 	@Override
 	@Command
-	public Response list() throws IOException {
-		ListRequest request = new ListRequest();
-
+	public Response list() throws IOException
+	{
+		ListRequest request = new ListRequest("");
+		
 		this.sendToServer(request);
-
+		
 		return this.receiveFromServer();
-
+		
 	}
+
+
 
 	@Override
 	@Command
-	public Response download(String filename) throws IOException {
+	public Response download(String filename) throws IOException
+	{
 		File f = new File(directory, filename);
-		if (f.exists()) {
+		if(f.exists())
+		{
 			f.delete();
 		}
 		DownloadTicketRequest request = new DownloadTicketRequest(filename);
-
+		
 		this.sendToServer(request);
-
-		try {
+		
+		try
+		{
 			Response r = (Response) this.receiveFromServer();
-			if (r instanceof MessageResponse) {
+			if(r instanceof MessageResponse)
+			{
 				return r;
 			}
-			if (r instanceof DownloadTicketResponse) {
-				DownloadTicketResponse response = (DownloadTicketResponse) r;
+			if(r instanceof DownloadTicketResponse)
+			{
+				DownloadTicketResponse response = (DownloadTicketResponse)r;
 				DownloadTicket ticket = response.getTicket();
 
-				Socket downloadSocket = new Socket(ticket.getAddress(),ticket.getPort());
-				ObjectOutputStream oos = new ObjectOutputStream(
-						downloadSocket.getOutputStream());
+				Socket downloadSocket = new Socket(ticket.getAddress(), ticket.getPort());
+				ObjectOutputStream oos = new ObjectOutputStream(downloadSocket.getOutputStream());
 				oos.flush();
 				ObjectInputStream ois = new ObjectInputStream(downloadSocket.getInputStream());
-				DownloadFileRequest fileRequest = new DownloadFileRequest(ticket);
+				DownloadFileRequest fileRequest = new DownloadFileRequest("",ticket);
 
 				oos.writeObject(fileRequest);
 				oos.flush();
-
 				Response fileResponse = (Response) ois.readObject();
-				if (fileResponse instanceof MessageResponse) {
+				if(fileResponse instanceof MessageResponse)
+				{
 					return fileResponse;
-				} else if (fileResponse instanceof DownloadFileResponse) {
-					DownloadFileResponse downloadFile = (DownloadFileResponse) fileResponse;
+				}
+				else if(fileResponse instanceof DownloadFileResponse)
+				{
+					DownloadFileResponse downloadFile = (DownloadFileResponse)fileResponse;
 					String text = new String(downloadFile.getContent());
-					File downloaded = new File(directory, filename);
+					File downloaded = new File(this.directory, filename);
 					downloaded.createNewFile();
 
 					PrintWriter out = new PrintWriter(downloaded);
@@ -297,74 +328,96 @@ public class ClientCli implements IClientCli {
 					return downloadFile;
 				}
 			}
-		} catch (EOFException eof) {
+		} 
+		catch(EOFException eof)
+		{
 			shell.writeLine("Socket closed unexpectedly");
 			exit();
-		} catch (SocketException se) {
+		}
+		catch(SocketException se)
+		{
 			shell.writeLine("Socket closed unexpectedly.");
 			exit();
-		} catch (ClassNotFoundException e) {
+		}
+		catch (ClassNotFoundException e)
+		{
 			e.printStackTrace();
 		}
 		return null;
 	}
 
+
 	@Override
 	@Command
-	public MessageResponse upload(String filename) throws IOException {
-		File f = new File(directory, filename);
-		if (f.exists()) {
+	public MessageResponse upload(String filename) throws IOException
+	{
+		File f = new File(this.directory, filename);
+		if(f.exists())
+		{
 			BufferedReader br = new BufferedReader(new FileReader(f));
-			try {
+			try
+			{
 				StringBuilder sb = new StringBuilder();
 				String line = br.readLine();
 
-				while (line != null) {
+				while (line != null) 
+				{
 					sb.append(line);
 					sb.append('\n');
 					line = br.readLine();
 				}
 				String text = sb.toString();
 
-				UploadRequest request = new UploadRequest(filename, 0,
-						text.getBytes());
-
+				UploadRequest request = new UploadRequest("",filename, 0, text.getBytes());
+				
 				this.sendToServer(request);
-
-				try {
-					return (MessageResponse) this.receiveFromServer();
-				} catch (SocketException se) {
+					
+				try
+				{
+					return (MessageResponse)this.receiveFromServer();
+				} 
+				catch(SocketException se)
+				{
 					shell.writeLine("Socket closed unexpectedly.");
 					exit();
-				} catch (EOFException eof) {
+				}
+				catch(EOFException eof)
+				{
 					shell.writeLine("Socket closed unexpectedly");
 					exit();
-				} 
-			} finally {
+				}
+				
+			} 
+			finally 
+			{
 				br.close();
 			}
-		} else {
-			return new MessageResponse(
-					"The file you wanted to upload doesn't exist.");
+		}
+		else
+		{
+			return new MessageResponse("The file you wanted to upload doesn't exist.");
 		}
 		return null;
 	}
 
+
 	@Override
 	@Command
-	public MessageResponse logout() throws IOException {
+	public MessageResponse logout() throws IOException
+	{
 		LogoutRequest request = new LogoutRequest();
 
 		this.sendToServer(request);
 		this.isLoggedIn = false;
 		this.aesChannel = null;
 		return (MessageResponse) this.receiveFromServer();
-
 	}
+
 
 	@Override
 	@Command
-	public MessageResponse exit() throws IOException {
+	public MessageResponse exit() throws IOException
+	{
 		shell.writeLine("Exiting...");
 		objectInput.close();
 		objectOutput.close();
@@ -377,26 +430,31 @@ public class ClientCli implements IClientCli {
 		return null;
 	}
 
-	private void exitWithoutConnection() throws IOException {
+	private void exitWithoutConnection() throws IOException
+	{
 		shell.writeLine("Exiting...");
 		shell.close();
 		System.in.close();
 		System.out.close();
 	}
 
-	public Shell getShell() {
+	public Shell getShell()
+	{
 		return shell;
 	}
 
-	public void setShell(Shell shell) {
+	public void setShell(Shell shell)
+	{
 		this.shell = shell;
 	}
 
-	public Config getConfig() {
+	public Config getConfig()
+	{
 		return config;
 	}
 
-	public void setConfig(Config config) {
+	public void setConfig(Config config)
+	{
 		this.config = config;
 	}
 }
