@@ -19,14 +19,11 @@ import cli.Shell;
 
 public class ProxyMain
 {
-	public static PrivateKey privateKey;
 	/**
 	 * @param args
 	 */
 	public static void main(String[] args)
 	{
-		//Security.addProvider(new org.bouncycastle.jce.provider.BouncyCastleProvider());
-		readPrivateKey("keys/proxy.pem");
 		Shell shell = new Shell("proxy", System.out, System.in);
 		ProxyCli proxy = new ProxyCli(new Config("proxy"), shell);
 		shell.register(proxy);
@@ -35,7 +32,7 @@ public class ProxyMain
 	}
 	
 
-	private static void readPrivateKey(String pathToPrivateKey){
+	/*private static void readPrivateKey(String pathToPrivateKey){
 		PEMReader in = null;
 		try {
 			in = new PEMReader(new FileReader(pathToPrivateKey), new PasswordFinder() {
@@ -58,8 +55,9 @@ public class ProxyMain
 			privateKey = keyPair.getPrivate();
 			in.close();
 		}catch(IOException ex){
+			ex.printStackTrace();
 			System.err.println("ERROR: reading Private Key - most likely wrong password");
 		}
 	}
-
+*/
 }

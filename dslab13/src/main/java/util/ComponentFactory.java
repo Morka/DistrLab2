@@ -1,5 +1,7 @@
 package util;
 
+import java.security.Security;
+
 import proxy.IProxyCli;
 import proxy.ProxyCli;
 import cli.Shell;
@@ -40,7 +42,8 @@ public class ComponentFactory {
 	 */
 	public IProxyCli startProxy(Config config, Shell shell) throws Exception {
 		// TODO: create a new proxy instance (including a Shell) and start it
-		ProxyCli proxy = new ProxyCli(config, shell);
+		Security.addProvider(new org.bouncycastle.jce.provider.BouncyCastleProvider());
+		ProxyCli proxy = new ProxyCli(new Config("proxy"), shell);
 		shell.register(proxy);
 		Thread t = new Thread(shell);
 		t.start();
