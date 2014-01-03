@@ -34,7 +34,7 @@ public class LoginHandshake {
 
 		byte[] encodedUsername = this.base64Channel.encode(username.getBytes()); // encoded
 		byte[] encodedClientChallenge = this.createClientChallenge(); // encoded
-		PublicKey publicKey = this.importPublicKeyAuctionServer();
+		PublicKey publicKey = this.importPublicKeyProxy();
 
 		Channel rsaChannel = new RSAChannel(publicKey);
 
@@ -105,7 +105,7 @@ public class LoginHandshake {
 
 	}
 
-	private PublicKey importPublicKeyAuctionServer() {
+	private PublicKey importPublicKeyProxy() {
 		Config config = new Config("client");
 		String pathToPublicKey = config.getString("proxy.key");
 

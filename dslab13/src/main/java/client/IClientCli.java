@@ -151,4 +151,24 @@ public interface IClientCli {
 	 */
 	@Command
 	MessageResponse exit() throws IOException;
+	
+	
+	@Command
+	MessageResponse readQuorum() throws IOException;
+	
+	@Command
+	MessageResponse writeQuorum() throws IOException;
+	
+	@Command
+	MessageResponse topThreeDownloads() throws IOException;
+	
+	@Command
+	MessageResponse subscribe(String filename, int numberOfDownloads) throws IOException;
+	
+	@Command
+	PublicKeyMessageResponse getProxyPublicKey() throws IOException;
+	
+	@Command
+	MessageResponse setUserPublicKey(String userName) throws IOException;
+	
 }

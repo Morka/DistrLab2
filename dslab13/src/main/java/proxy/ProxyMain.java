@@ -28,6 +28,7 @@ public class ProxyMain
 		//Security.addProvider(new org.bouncycastle.jce.provider.BouncyCastleProvider());
 		readPrivateKey("keys/proxy.pem");
 		Shell shell = new Shell("proxy", System.out, System.in);
+    	System.out.println("Test");
 		ProxyCli proxy = new ProxyCli(new Config("proxy"), shell);
 		shell.register(proxy);
 		Thread t = new Thread(shell);
@@ -60,6 +61,8 @@ public class ProxyMain
 		}catch(IOException ex){
 			System.err.println("ERROR: reading Private Key - most likely wrong password");
 		}
+    	System.out.println("in readPrivate");
+
 	}
 
 }

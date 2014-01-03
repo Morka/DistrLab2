@@ -45,10 +45,13 @@ public class ProxyOverseer implements Runnable
 	private int checkPeriod;
 	private AtomicBoolean stop;
 	
+	private IProxyRMI proxyRMI;
+	
 	private ConcurrentHashMap<String, UserInfo> users; 
 	
-	public ProxyOverseer(Config config, ServerSocket serverSocket, AtomicBoolean stop)
+	public ProxyOverseer(Config config, ServerSocket serverSocket, AtomicBoolean stop, IProxyRMI proxyRMI)
 	{
+		this.proxyRMI = proxyRMI;
 		this.config = config;
 		this.users = UserData.getInstance().users;
 		this.stop = stop;
@@ -66,7 +69,7 @@ public class ProxyOverseer implements Runnable
 			try
 			{
 				Socket clientSocket = serverSocket.accept();
-				Proxy proxy = new Proxy(clientSocket, config, stop);
+				Proxy proxy = new Proxy(clientSocket, config, stop, this.proxyRMI);
 				sockets.add(clientSocket);
 				pool.execute(proxy);
 			} 

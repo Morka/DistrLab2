@@ -11,6 +11,11 @@ import java.io.OutputStream;
 import java.net.InetAddress;
 import java.net.Socket;
 import java.net.SocketException;
+import java.rmi.AlreadyBoundException;
+import java.rmi.RemoteException;
+import java.rmi.registry.LocateRegistry;
+import java.rmi.registry.Registry;
+import java.rmi.server.UnicastRemoteObject;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
@@ -66,7 +71,6 @@ public class Proxy implements IProxy, Runnable
         private ObjectInputStream objectInput;
         private OutputStream output;
         private ObjectOutputStream objectOutput;
-        private Socket clientSocket;
         private String username;
         private AtomicBoolean stop;
         private HmacHelper hMac;
@@ -75,23 +79,27 @@ public class Proxy implements IProxy, Runnable
     	private byte[] serverChallenge;
     	private boolean loggedIn;
     	private String tmpUsername;
+    	
+    	private IProxyRMI proxyRMI;
 
         private ConcurrentHashMap<Integer, FileServerInfo> readQuorum = null;
         private ConcurrentHashMap<Integer, FileServerInfo> writeQuorum = null;
-
+   
         private ConcurrentHashMap<String, UserInfo> users;
+        
+        public static ConcurrentHashMap<String, Integer> downloadCounter = new ConcurrentHashMap<String, Integer>();
 
         private ConcurrentHashMap<Integer, FileServerInfo> serverIdentifier;
 
-        public Proxy(Socket clientSocket, Config config, AtomicBoolean stop)
-        {
+        public Proxy(Socket clientSocket, Config config, AtomicBoolean stop, IProxyRMI proxyRMI)
+        {                    	
+
     			this.base64Channel = new Base64Channel();
         		hMac = new HmacHelper(config);
-                this.clientSocket = clientSocket;
                 this.users = UserData.getInstance().users;        
                 this.stop = stop;
                 this.serverIdentifier = ServerData.getInstance().servers;
-                username = "";
+                this.username = "";
                 try
                 {
                         output = clientSocket.getOutputStream();
@@ -99,12 +107,17 @@ public class Proxy implements IProxy, Runnable
                         objectOutput.flush();
                         input = clientSocket.getInputStream();
                         objectInput = new ObjectInputStream(input);
+                        
                 }
                 catch (IOException e)
                 {
                         e.printStackTrace();
                 }
+                this.proxyRMI = proxyRMI;
+                
+                this.setQuorums();
         }
+        
 
         @Override
         public LoginResponse login(LoginRequest request) throws IOException
@@ -366,29 +379,7 @@ public class Proxy implements IProxy, Runnable
                         }
                         if (version != -1) {
                                 synchronized (serverIdentifier) {
-                                        /*
-                                         * if(serverIdentifier.isEmpty()) { return new
-                                         * MessageResponse("No servers available."); } long min =
-                                         * Long.MAX_VALUE; InetAddress address = null; int port = 0;
-                                         * long usage = 0; for(Map.Entry<Integer, FileServerInfo>
-                                         * entry : serverIdentifier.entrySet()) { usage =
-                                         * entry.getValue().getUsage(); if(min > usage) { min =
-                                         * usage; address = entry.getValue().getAddress(); port =
-                                         * entry.getKey(); } } usage =
-                                         * serverIdentifier.get(port).getUsage(); Socket socket =
-                                         * new Socket(address, port); ObjectOutputStream oos = new
-                                         * ObjectOutputStream(socket.getOutputStream());
-                                         * oos.flush(); ObjectInputStream ois = new
-                                         * ObjectInputStream(socket.getInputStream()); InfoRequest
-                                         * infoRequest = new InfoRequest(request.getFilename());
-                                         *
-                                         * oos.writeObject(infoRequest); oos.flush(); long fileSize
-                                         * = 0; InfoResponse infoResponse; try { infoResponse =
-                                         * (InfoResponse) ois.readObject(); fileSize =
-                                         * infoResponse.getSize(); oos.close(); ois.close();
-                                         * socket.close(); } catch (ClassNotFoundException e) {
-                                         * e.printStackTrace(); }
-                                         */
+                                        
                                         synchronized (users)
                                         {
                                                 if (fileSize > users.get(username).getCredits())
@@ -409,6 +400,7 @@ public class Proxy implements IProxy, Runnable
                                                 users.put(username, info);
                                                 serverIdentifier.put(port, new FileServerInfo(address,
                                                                 port, usage + fileSize, true));
+                                                downloadCounter.put(request.getFilename(), downloadCounter.get(request.getFilename())+1);
                                                 return new DownloadTicketResponse(ticket);
                                         }
                                 }
@@ -760,6 +752,12 @@ public class Proxy implements IProxy, Runnable
                                 break;
                         }
                 }
+                try {
+					this.proxyRMI.setQuorums(readQuorum.size(), writeQuorum.size());
+				} catch (RemoteException e) {
+					// TODO Auto-generated catch block
+					e.printStackTrace();
+				}
         }
 
         private int getVersionNumberFromFileServer(String filename, FileServerInfo info)

@@ -3,6 +3,12 @@ package proxy;
 import java.io.IOException;
 import java.net.ServerSocket;
 
+import java.rmi.AlreadyBoundException;
+import java.rmi.NotBoundException;
+import java.rmi.RemoteException;
+import java.rmi.registry.LocateRegistry;
+import java.rmi.registry.Registry;
+import java.rmi.server.UnicastRemoteObject;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -28,6 +34,13 @@ public class ProxyCli implements IProxyCli
 
 	private ConcurrentHashMap<Integer, FileServerInfo> serverIdentifier;
 
+	private String bindingName;
+	private int proxyRmiPort;
+	private String keysDir;
+	private Registry registry;
+	
+	private IProxyRMI proxyRMI;
+
 	public ProxyCli(Config config, Shell shell)
 	{
 		this.shell = shell;
@@ -41,10 +54,49 @@ public class ProxyCli implements IProxyCli
 		{
 			e.printStackTrace();
 		}
-		overseer = new ProxyOverseer(config, serverSocket, stop);
+
+
+        Config mcConfig = new Config("mc");
+        
+        this.bindingName = mcConfig.getString("binding.name");
+        this.proxyRmiPort = mcConfig.getInt("proxy.rmi.port");
+        this.keysDir = mcConfig.getString("keys.dir");
+        IProxyRMI stub = this.registerProxy();
+        
+		overseer = new ProxyOverseer(config, serverSocket, stop, stub);
 		t = new Thread(overseer);
 		t.start();
 	}
+	
+
+    private IProxyRMI registerProxy(){
+    	this.proxyRMI = new ProxyRMI();
+    	IProxyRMI stub = null;
+    	
+    	try {
+			stub = (IProxyRMI)UnicastRemoteObject.exportObject(this.proxyRMI, 0);
+		} catch (RemoteException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+			return null;
+		}
+    	    	
+    	try {
+			this.registry =  LocateRegistry.createRegistry(this.proxyRmiPort);
+			this.registry.bind(this.bindingName, stub);
+    	
+    	} catch (RemoteException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		} catch (AlreadyBoundException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+    	   
+    	System.out.println("register finished");
+    	
+    	return stub;
+    }
 
 	@Override
 	@Command
@@ -91,12 +143,24 @@ public class ProxyCli implements IProxyCli
 	public
 	MessageResponse exit() throws IOException
 	{
+		
+		
+		
 		stop.set(true);
 		shell.writeLine("Exiting...");
 		shell.close();
 		serverSocket.close();
 		System.in.close();
 		System.out.close();
+		try{
+			UnicastRemoteObject.unexportObject(this.proxyRMI, true);
+		}catch(IOException ex){
+			ex.printStackTrace();
+		}
+		
+		try {
+			this.registry.unbind(this.bindingName);
+		} catch (NotBoundException e) {	}
 		return null;
 	}
 }

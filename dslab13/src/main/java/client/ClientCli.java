@@ -17,13 +17,21 @@ import java.io.PrintWriter;
 import java.net.Socket;
 import java.net.SocketException;
 import java.net.UnknownHostException;
+import java.rmi.NotBoundException;
+import java.rmi.RemoteException;
+import java.rmi.registry.LocateRegistry;
+import java.rmi.registry.Registry;
 import java.security.KeyPair;
 import java.security.PrivateKey;
+import java.security.spec.X509EncodedKeySpec;
 import java.util.Scanner;
 import java.util.concurrent.ExecutorService;
 
 import org.bouncycastle.openssl.PEMReader;
+import org.bouncycastle.openssl.PEMWriter;
 import org.bouncycastle.openssl.PasswordFinder;
+
+import proxy.IProxyRMI;
 
 import security.AESChannel;
 import security.Base64Channel;
@@ -52,6 +60,7 @@ import message.response.LoginResponse;
 import message.response.LoginResponseHandshake;
 import message.response.MessageResponse;
 import message.response.LoginResponse.Type;
+import message.response.PublicKeyMessageResponse;
 import model.DownloadTicket;
 
 public class ClientCli implements IClientCli {
@@ -68,6 +77,14 @@ public class ClientCli implements IClientCli {
 	private Channel aesChannel;
 	private Channel base64Channel;
 	private boolean isLoggedIn;
+	
+
+	private String bindingName;
+	private int proxyRmiPort;
+	private String keysDir;
+	private String proxyHost;
+	
+	private IProxyRMI proxyRMI;
 
 	public ClientCli(Config config, Shell shell) {
 		this.isLoggedIn = false;
@@ -83,6 +100,16 @@ public class ClientCli implements IClientCli {
 			output = socket.getOutputStream();
 			objectOutput = new ObjectOutputStream(output);
 			objectOutput.flush();
+
+			Config mcConfig = new Config("mc");
+			
+            this.bindingName = mcConfig.getString("binding.name");
+            this.proxyRmiPort = mcConfig.getInt("proxy.rmi.port");
+            this.keysDir = mcConfig.getString("keys.dir");
+            this.proxyHost = mcConfig.getString("proxy.host");
+            
+            this.bindToProxyRMI();
+            
 		} catch (SocketException se) {
 			try {
 				shell.writeLine("Could not find server.");
@@ -96,6 +123,76 @@ public class ClientCli implements IClientCli {
 			e.printStackTrace();
 		}
 	}
+	
+	private void bindToProxyRMI(){
+		
+		try {
+			Registry registry = LocateRegistry.getRegistry(this.proxyHost, this.proxyRmiPort);
+			this.proxyRMI = (IProxyRMI)registry.lookup(bindingName);
+			
+		} catch (RemoteException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		} catch (NotBoundException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+		
+		System.out.println("Client is binded");
+	}
+	
+	@Override
+	@Command
+	public MessageResponse readQuorum() throws IOException{
+		
+		return this.proxyRMI.readQuorum();
+		
+	}
+
+	@Override
+	@Command
+	public MessageResponse writeQuorum() throws IOException{
+		
+		return this.proxyRMI.writeQuorum();
+		
+	}
+	
+	@Override
+	@Command
+	public MessageResponse topThreeDownloads() throws IOException {
+		return this.proxyRMI.topThreeDownloads();
+	}
+
+	@Override
+	@Command
+	public MessageResponse subscribe(String filename, int numberOfDownloads)
+			throws IOException {
+		// TODO Auto-generated method stub
+		return null;
+	}
+
+	@Override
+	@Command
+	public PublicKeyMessageResponse getProxyPublicKey() throws IOException {
+		PublicKeyMessageResponse pKM = this.proxyRMI.getProxyPublicKey();
+		
+		PEMWriter write = new PEMWriter(new PrintWriter(new File(this.keysDir, "proxy.pub.pem")));
+		write.writeObject(pKM.getPublicKey());	
+		write.close();
+		
+		return this.proxyRMI.getProxyPublicKey();
+	}
+	
+	
+	
+	@Override
+	@Command
+	public MessageResponse setUserPublicKey(String userName) throws IOException {
+		// TODO Auto-generated method stub
+		return null;
+	}
+	
+	
 
 	private void sendToServer(Request request) throws IOException {
 		byte[] toSend = this.serialize(request);
@@ -421,4 +518,6 @@ public class ClientCli implements IClientCli {
 	public void setConfig(Config config) {
 		this.config = config;
 	}
+
+	
 }
