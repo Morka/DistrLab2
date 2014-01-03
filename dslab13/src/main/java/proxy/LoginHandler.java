@@ -153,11 +153,8 @@ public class LoginHandler {
 
 	private PublicKey importPublicKey(String username){
 		Config config = new Config("proxy");
-		System.out.println(config.getString("keys.dir") + " *** is there a slash afterwards? if yes, it is okay");
 		String pathToPublicKey = config.getString("keys.dir")+ "/" + username + ".pub.pem";
-		
-		System.out.println("Path to Key: " + pathToPublicKey);
-		
+				
 		PublicKey publicKey = null;
 		PEMReader in = null;
 		try {

@@ -80,9 +80,6 @@ public class LoginHandshake {
 			}
 		}
 		
-		//ivParam = this.base64Channel.decode(ivParam, null);
-		//secretKey = this.base64Channel.decode(secretKey, null);
-		
 		assert splittedMessage[2].matches("["+B64+"]{43}=") : "3rd message";
 		
 		AesProperties aesProperties = new AesProperties(ivParam, secretKey, splittedMessage[2]);
