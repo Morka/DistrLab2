@@ -23,6 +23,7 @@ import java.rmi.registry.LocateRegistry;
 import java.rmi.registry.Registry;
 import java.security.KeyPair;
 import java.security.PrivateKey;
+import java.security.PublicKey;
 import java.security.spec.X509EncodedKeySpec;
 import java.util.Scanner;
 import java.util.concurrent.ExecutorService;
@@ -50,6 +51,7 @@ import message.request.LoginRequest;
 import message.request.LoginRequestFinalHandshake;
 import message.request.LoginRequestHandshake;
 import message.request.LogoutRequest;
+import message.request.PublicKeySetRequest;
 import message.request.UploadRequest;
 import message.response.BuyResponse;
 import message.response.CreditsResponse;
@@ -188,8 +190,36 @@ public class ClientCli implements IClientCli {
 	@Override
 	@Command
 	public MessageResponse setUserPublicKey(String userName) throws IOException {
-		// TODO Auto-generated method stub
-		return null;
+		return this.proxyRMI.setUserPublicKey(userName, new PublicKeySetRequest(this.readInPublicKey(userName)));
+	}
+	
+	private PublicKey readInPublicKey(String username){
+			Config config = new Config("client");
+			String pathToPublicKey = config.getString("keys.dir");
+			pathToPublicKey += "/" + username + ".pub.pem";
+
+			System.out.println(pathToPublicKey);
+			
+			PublicKey publicKey = null;
+			PEMReader in = null;
+			try {
+				in = new PEMReader(new FileReader(pathToPublicKey));
+				publicKey = (PublicKey) in.readObject();
+			} catch (FileNotFoundException ex) {
+				System.err.println("ERROR: PublicKey File not found");
+			} catch (IOException ex) {
+				System.err.println("ERROR: in.readObject() not possible");
+
+			}
+
+			try {
+				in.close();
+			} catch (IOException e) {
+				System.err.println("ERROR 'in' could'nt be closed");
+			}
+
+			return publicKey;
+		
 	}
 	
 	

@@ -3,6 +3,7 @@ package proxy;
 import java.rmi.Remote;
 import java.rmi.RemoteException;
 
+import message.request.PublicKeySetRequest;
 import message.response.MessageResponse;
 import message.response.PublicKeyMessageResponse;
 
@@ -20,7 +21,7 @@ public interface IProxyRMI extends Remote{
 
 	public PublicKeyMessageResponse getProxyPublicKey() throws RemoteException;
 
-	public MessageResponse setUserPublicKey(String username) throws RemoteException;
+	public MessageResponse setUserPublicKey(String username, PublicKeySetRequest publicKey) throws RemoteException;
 
 
 }
