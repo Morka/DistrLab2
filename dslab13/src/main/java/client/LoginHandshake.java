@@ -65,7 +65,7 @@ public class LoginHandshake {
 			
 			if(splittedMessage.length == 5){
 				
-				//return true if the client challenge that came back is the one that was sent
+				//returns true if the client challenge that came back is the one that was sent
 				if(!splittedMessage[1].equals(new String(this.clientChallenge))){
 					System.err.println("Error: clientChallenge is not correct");
 					return null;

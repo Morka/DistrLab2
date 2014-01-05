@@ -10,13 +10,14 @@ import java.io.PrintWriter;
 import java.net.Socket;
 import java.rmi.RemoteException;
 import java.security.PublicKey;
+import java.util.ArrayList;
 import java.util.HashSet;
-import java.util.Set;
-import java.util.TreeMap;
 import java.util.concurrent.ConcurrentHashMap;
 
 import org.bouncycastle.openssl.PEMReader;
 import org.bouncycastle.openssl.PEMWriter;
+
+import client.ICallbackObject;
 
 import util.Config;
 import util.HmacHelper;
@@ -33,19 +34,32 @@ public class ProxyRMI implements IProxyRMI {
 
 	private int readQ;
 	private int writeQ;
-
+	
+	private ArrayList<CallbackProperties> callbackList;
+	
+	public ProxyRMI(){
+		this.callbackList = new ArrayList<CallbackProperties>();
+	}
+	
+	public void processDownloadCounterIncrease(String filename, int downloadCounter) throws RemoteException{
+		for(CallbackProperties call : callbackList){
+			if(call.getFilename().equals(filename)){
+				if(call.getNumberOfDownlaods() == downloadCounter){
+					call.getCallback().callback("Notification: " + call.getFilename() + " got downloaded " + call.getNumberOfDownlaods() + " times!");
+				}
+			}
+		}
+	}
+	
+	
 	@Override
 	public void setQuorums(int readQ, int writeQ) throws RemoteException {
 		this.readQ = readQ;
 		this.writeQ = writeQ;
-		System.out.println(readQ + " Set readQuorum");
-
-		System.out.println(writeQ + " Set writeQuorum");
 	}
 
 	@Override
 	public MessageResponse readQuorum() throws RemoteException {
-
 		return new MessageResponse("Read-Quorum is set to " + this.readQ);
 	}
 
@@ -119,8 +133,7 @@ public class ProxyRMI implements IProxyRMI {
 	}
 
 	private HashSet<String> list() throws IOException {
-		ConcurrentHashMap<Integer, FileServerInfo> serverIdentifier = ServerData
-				.getInstance().servers;
+		ConcurrentHashMap<Integer, FileServerInfo> serverIdentifier = ServerData.getInstance().servers;
 		HmacHelper hMac = new HmacHelper(new Config("proxy"));
 
 		synchronized (serverIdentifier) {
@@ -173,10 +186,12 @@ public class ProxyRMI implements IProxyRMI {
 	}
 
 	@Override
-	public MessageResponse subscribe(String filename, int numberOfDownloads)
+	public MessageResponse subscribe(String filename, int numberOfDownloads, ICallbackObject callbackObject)
 			throws RemoteException {
-		// TODO Auto-generated method stub
-		return null;
+
+		this.callbackList.add(new CallbackProperties(filename, numberOfDownloads, callbackObject));
+			
+		return new MessageResponse("Successfully subscribed for file: " + filename);
 	}
 
 	@Override
@@ -230,7 +245,7 @@ public class ProxyRMI implements IProxyRMI {
 			throw new RemoteException(e.getMessage());
 		}
 
-		return new MessageResponse("Successfully transmitted public key of user: " + username	);
+		return new MessageResponse("Successfully transmitted public key of user: " + username + ".");
 	}
 
 }

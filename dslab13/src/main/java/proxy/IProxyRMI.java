@@ -3,6 +3,8 @@ package proxy;
 import java.rmi.Remote;
 import java.rmi.RemoteException;
 
+import client.ICallbackObject;
+
 import message.request.PublicKeySetRequest;
 import message.response.MessageResponse;
 import message.response.PublicKeyMessageResponse;
@@ -17,11 +19,12 @@ public interface IProxyRMI extends Remote{
 	
 	public MessageResponse topThreeDownloads() throws RemoteException;
 
-	public MessageResponse subscribe(String filename, int numberOfDownloads) throws RemoteException;
+	public MessageResponse subscribe(String filename, int numberOfDownloads, ICallbackObject callbackObject) throws RemoteException;
 
 	public PublicKeyMessageResponse getProxyPublicKey() throws RemoteException;
 
 	public MessageResponse setUserPublicKey(String username, PublicKeySetRequest publicKey) throws RemoteException;
-
+	
+	public void processDownloadCounterIncrease(String filename, int downloadCounter) throws RemoteException;
 
 }

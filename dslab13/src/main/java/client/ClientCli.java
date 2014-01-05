@@ -6,7 +6,6 @@ import java.io.ByteArrayOutputStream;
 import java.io.EOFException;
 import java.io.File;
 import java.io.FileNotFoundException;
-import java.io.FileOutputStream;
 import java.io.FileReader;
 import java.io.IOException;
 import java.io.InputStream;
@@ -17,16 +16,16 @@ import java.io.PrintWriter;
 import java.net.Socket;
 import java.net.SocketException;
 import java.net.UnknownHostException;
+import java.rmi.NoSuchObjectException;
 import java.rmi.NotBoundException;
 import java.rmi.RemoteException;
 import java.rmi.registry.LocateRegistry;
 import java.rmi.registry.Registry;
+import java.rmi.server.UnicastRemoteObject;
 import java.security.KeyPair;
 import java.security.PrivateKey;
 import java.security.PublicKey;
-import java.security.spec.X509EncodedKeySpec;
-import java.util.Scanner;
-import java.util.concurrent.ExecutorService;
+import java.util.ArrayList;
 
 import org.bouncycastle.openssl.PEMReader;
 import org.bouncycastle.openssl.PEMWriter;
@@ -53,11 +52,8 @@ import message.request.LoginRequestHandshake;
 import message.request.LogoutRequest;
 import message.request.PublicKeySetRequest;
 import message.request.UploadRequest;
-import message.response.BuyResponse;
-import message.response.CreditsResponse;
 import message.response.DownloadFileResponse;
 import message.response.DownloadTicketResponse;
-import message.response.ListResponse;
 import message.response.LoginResponse;
 import message.response.LoginResponseHandshake;
 import message.response.MessageResponse;
@@ -79,13 +75,13 @@ public class ClientCli implements IClientCli {
 	private Channel aesChannel;
 	private Channel base64Channel;
 	private boolean isLoggedIn;
-	
 
 	private String bindingName;
 	private int proxyRmiPort;
 	private String keysDir;
 	private String proxyHost;
-	
+	private ArrayList<ICallbackObject> callbacksList;
+
 	private IProxyRMI proxyRMI;
 
 	public ClientCli(Config config, Shell shell) {
@@ -104,14 +100,15 @@ public class ClientCli implements IClientCli {
 			objectOutput.flush();
 
 			Config mcConfig = new Config("mc");
-			
-            this.bindingName = mcConfig.getString("binding.name");
-            this.proxyRmiPort = mcConfig.getInt("proxy.rmi.port");
-            this.keysDir = mcConfig.getString("keys.dir");
-            this.proxyHost = mcConfig.getString("proxy.host");
-            
-            this.bindToProxyRMI();
-            
+
+			this.bindingName = mcConfig.getString("binding.name");
+			this.proxyRmiPort = mcConfig.getInt("proxy.rmi.port");
+			this.keysDir = mcConfig.getString("keys.dir");
+			this.proxyHost = mcConfig.getString("proxy.host");
+
+			this.bindToProxyRMI();
+			this.callbacksList = new ArrayList<ICallbackObject>();
+
 		} catch (SocketException se) {
 			try {
 				shell.writeLine("Could not find server.");
@@ -125,13 +122,14 @@ public class ClientCli implements IClientCli {
 			e.printStackTrace();
 		}
 	}
-	
-	private void bindToProxyRMI(){
-		
+
+	private void bindToProxyRMI() {
+
 		try {
-			Registry registry = LocateRegistry.getRegistry(this.proxyHost, this.proxyRmiPort);
-			this.proxyRMI = (IProxyRMI)registry.lookup(bindingName);
-			
+			Registry registry = LocateRegistry.getRegistry(this.proxyHost,
+					this.proxyRmiPort);
+			this.proxyRMI = (IProxyRMI) registry.lookup(bindingName);
+
 		} catch (RemoteException e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
@@ -139,26 +137,24 @@ public class ClientCli implements IClientCli {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}
-		
+
 		System.out.println("Client is binded");
-	}
-	
-	@Override
-	@Command
-	public MessageResponse readQuorum() throws IOException{
-		
-		return this.proxyRMI.readQuorum();
-		
 	}
 
 	@Override
 	@Command
-	public MessageResponse writeQuorum() throws IOException{
-		
-		return this.proxyRMI.writeQuorum();
-		
+	public MessageResponse readQuorum() throws IOException {
+		return this.proxyRMI.readQuorum();
 	}
-	
+
+	@Override
+	@Command
+	public MessageResponse writeQuorum() throws IOException {
+
+		return this.proxyRMI.writeQuorum();
+
+	}
+
 	@Override
 	@Command
 	public MessageResponse topThreeDownloads() throws IOException {
@@ -169,60 +165,65 @@ public class ClientCli implements IClientCli {
 	@Command
 	public MessageResponse subscribe(String filename, int numberOfDownloads)
 			throws IOException {
-		// TODO Auto-generated method stub
-		return null;
+		if (this.isLoggedIn) {
+			ICallbackObject callbackObject = new CallbackObject();
+			this.callbacksList.add(callbackObject);
+
+			return this.proxyRMI.subscribe(filename, numberOfDownloads,
+					callbackObject);
+		} else {
+			return new MessageResponse("Log in first");
+		}
 	}
 
 	@Override
 	@Command
 	public PublicKeyMessageResponse getProxyPublicKey() throws IOException {
 		PublicKeyMessageResponse pKM = this.proxyRMI.getProxyPublicKey();
-		
-		PEMWriter write = new PEMWriter(new PrintWriter(new File(this.keysDir, "proxy.pub.pem")));
-		write.writeObject(pKM.getPublicKey());	
+
+		PEMWriter write = new PEMWriter(new PrintWriter(new File(this.keysDir,
+				"proxy.pub.pem")));
+		write.writeObject(pKM.getPublicKey());
 		write.close();
-		
+
 		return this.proxyRMI.getProxyPublicKey();
 	}
-	
-	
-	
+
 	@Override
 	@Command
 	public MessageResponse setUserPublicKey(String userName) throws IOException {
-		return this.proxyRMI.setUserPublicKey(userName, new PublicKeySetRequest(this.readInPublicKey(userName)));
+		return this.proxyRMI.setUserPublicKey(userName,
+				new PublicKeySetRequest(this.readInPublicKey(userName)));
 	}
-	
-	private PublicKey readInPublicKey(String username){
-			Config config = new Config("client");
-			String pathToPublicKey = config.getString("keys.dir");
-			pathToPublicKey += "/" + username + ".pub.pem";
 
-			System.out.println(pathToPublicKey);
-			
-			PublicKey publicKey = null;
-			PEMReader in = null;
-			try {
-				in = new PEMReader(new FileReader(pathToPublicKey));
-				publicKey = (PublicKey) in.readObject();
-			} catch (FileNotFoundException ex) {
-				System.err.println("ERROR: PublicKey File not found");
-			} catch (IOException ex) {
-				System.err.println("ERROR: in.readObject() not possible");
+	private PublicKey readInPublicKey(String username) {
+		Config config = new Config("client");
+		String pathToPublicKey = config.getString("keys.dir");
+		pathToPublicKey += "/" + username + ".pub.pem";
 
-			}
+		System.out.println(pathToPublicKey);
 
-			try {
-				in.close();
-			} catch (IOException e) {
-				System.err.println("ERROR 'in' could'nt be closed");
-			}
+		PublicKey publicKey = null;
+		PEMReader in = null;
+		try {
+			in = new PEMReader(new FileReader(pathToPublicKey));
+			publicKey = (PublicKey) in.readObject();
+		} catch (FileNotFoundException ex) {
+			System.err.println("ERROR: PublicKey File not found");
+		} catch (IOException ex) {
+			System.err.println("ERROR: in.readObject() not possible");
 
-			return publicKey;
-		
+		}
+
+		try {
+			in.close();
+		} catch (IOException e) {
+			System.err.println("ERROR 'in' could'nt be closed");
+		}
+
+		return publicKey;
+
 	}
-	
-	
 
 	private void sendToServer(Request request) throws IOException {
 		byte[] toSend = this.serialize(request);
@@ -504,10 +505,22 @@ public class ClientCli implements IClientCli {
 	@Command
 	public MessageResponse logout() throws IOException {
 		LogoutRequest request = new LogoutRequest();
+		int i = 0;
 
 		this.sendToServer(request);
 		this.isLoggedIn = false;
 		this.aesChannel = null;
+		while (!callbacksList.isEmpty()) {
+			try {
+				UnicastRemoteObject.unexportObject(callbacksList.get(i), true);
+			} catch (NoSuchObjectException e1) {
+				System.err.println("Nothing to unexport");
+			}
+
+			callbacksList.remove(i);
+			i++;
+		}
+
 		return (MessageResponse) this.receiveFromServer();
 	}
 
@@ -515,6 +528,10 @@ public class ClientCli implements IClientCli {
 	@Command
 	public MessageResponse exit() throws IOException {
 		shell.writeLine("Exiting...");
+		// TODO: IS a logout at this point okay? @christian
+		if (this.isLoggedIn == true) {
+			this.logout();
+		}
 		objectInput.close();
 		objectOutput.close();
 		input.close();
@@ -549,5 +566,4 @@ public class ClientCli implements IClientCli {
 		this.config = config;
 	}
 
-	
 }

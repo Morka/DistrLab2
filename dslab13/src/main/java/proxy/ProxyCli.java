@@ -36,7 +36,6 @@ public class ProxyCli implements IProxyCli
 
 	private String bindingName;
 	private int proxyRmiPort;
-	private String keysDir;
 	private Registry registry;
 	
 	private IProxyRMI proxyRMI;
@@ -60,12 +59,20 @@ public class ProxyCli implements IProxyCli
         
         this.bindingName = mcConfig.getString("binding.name");
         this.proxyRmiPort = mcConfig.getInt("proxy.rmi.port");
-        this.keysDir = mcConfig.getString("keys.dir");
         IProxyRMI stub = this.registerProxy();
         
-		overseer = new ProxyOverseer(config, serverSocket, stop, stub);
-		t = new Thread(overseer);
-		t.start();
+        if(stub != null){
+        	overseer = new ProxyOverseer(config, serverSocket, stop, stub);
+			t = new Thread(overseer);
+			t.start();
+        }
+        else{
+        	try {
+				this.exit();
+			} catch (IOException e) {
+				e.printStackTrace();
+			}
+        }
 	}
 	
 
@@ -76,8 +83,8 @@ public class ProxyCli implements IProxyCli
     	try {
 			stub = (IProxyRMI)UnicastRemoteObject.exportObject(this.proxyRMI, 0);
 		} catch (RemoteException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
+			System.err.println("Couldn't export proxyRMI");
+			//e.printStackTrace();
 			return null;
 		}
     	    	
@@ -86,14 +93,13 @@ public class ProxyCli implements IProxyCli
 			this.registry.bind(this.bindingName, stub);
     	
     	} catch (RemoteException e) {
-			// TODO Auto-generated catch block
+    		System.err.println(e.getMessage());
 			e.printStackTrace();
+			return null;
 		} catch (AlreadyBoundException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
+			System.err.println("Registry is already in use");
+			return null;
 		}
-    	   
-    	System.out.println("register finished");
     	
     	return stub;
     }
@@ -127,12 +133,7 @@ public class ProxyCli implements IProxyCli
 			for (Map.Entry<String, UserInfo> entry : users.entrySet()) 
 			{
 				text += entry.getValue().toString()+"\n";
-				/*text += entry.getKey()+" ";
-				for (int i = 1; i < entry.getValue().size(); i++) // skips password
-				{
-					text += entry.getValue().get(i) + " ";
-				}
-				text += "\n";*/
+				
 			}
 		}
 		return new MessageResponse(text);
@@ -140,12 +141,8 @@ public class ProxyCli implements IProxyCli
 
 	@Override
 	@Command
-	public
-	MessageResponse exit() throws IOException
-	{
-		
-		
-		
+	public MessageResponse exit() throws IOException
+	{	
 		stop.set(true);
 		shell.writeLine("Exiting...");
 		shell.close();

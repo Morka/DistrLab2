@@ -11,12 +11,7 @@ import java.io.OutputStream;
 import java.net.InetAddress;
 import java.net.Socket;
 import java.net.SocketException;
-import java.rmi.AlreadyBoundException;
 import java.rmi.RemoteException;
-import java.rmi.registry.LocateRegistry;
-import java.rmi.registry.Registry;
-import java.rmi.server.UnicastRemoteObject;
-import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
@@ -27,8 +22,6 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.SortedMap;
-import java.util.TreeMap;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicBoolean;
 
@@ -64,6 +57,8 @@ import message.response.LoginResponse.Type;
 import model.DownloadTicket;
 import model.FileServerInfo;
 import model.UserInfo;
+
+//TODO: Using the wrong password for the private key of the proxy isn't handled correctly!
 
 public class Proxy implements IProxy, Runnable
 {
@@ -260,7 +255,7 @@ public class Proxy implements IProxy, Runnable
         {
                 long fileSize = 0;
                 int version = -1;
-                setQuorums();
+                this.setQuorums();
 
                 InetAddress address = null;
                 int port = 0;
@@ -400,7 +395,14 @@ public class Proxy implements IProxy, Runnable
                                                 users.put(username, info);
                                                 serverIdentifier.put(port, new FileServerInfo(address,
                                                                 port, usage + fileSize, true));
-                                                downloadCounter.put(request.getFilename(), downloadCounter.get(request.getFilename())+1);
+                                                
+                                                if(downloadCounter.get(request.getFilename()) == null){
+                                                	downloadCounter.put(request.getFilename(), 1);
+                                                }else{
+                                                	downloadCounter.put(request.getFilename(), downloadCounter.get(request.getFilename())+1);
+                                                }
+                                                
+                                                this.proxyRMI.processDownloadCounterIncrease(request.getFilename(), downloadCounter.get(request.getFilename()));
                                                 return new DownloadTicketResponse(ticket);
                                         }
                                 }
