@@ -53,6 +53,7 @@ public class ProxyCli implements IProxyCli
 	public ProxyCli(Config config, Shell shell)
 	{
 		readPrivateKey(config.getString("key"));
+		
 		this.shell = shell;
 		users = UserData.getInstance().users;
 		serverIdentifier = ServerData.getInstance().servers;
@@ -89,6 +90,7 @@ public class ProxyCli implements IProxyCli
 	private void readPrivateKey(String pathToPrivateKey){
 		PEMReader in = null;
 		try {
+			
 			in = new PEMReader(new FileReader(pathToPrivateKey), new PasswordFinder() {
 					@Override
 					public char[] getPassword() {

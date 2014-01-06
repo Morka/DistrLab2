@@ -510,6 +510,7 @@ public class Proxy implements IProxy, Runnable
     				users.put(username, info);
     				this.loggedIn = false;
     				this.aesChannel = null;
+    				this.proxyRMI.unsubscribe();
     				this.username = "";
     				return new MessageResponse("Successfully logged out");
     			}
@@ -645,6 +646,8 @@ public class Proxy implements IProxy, Runnable
                                         this.sendResponse(response);
 
                                 }
+            					else{
+            					}
                         }
                         catch(SocketException se)
                         {
@@ -660,7 +663,7 @@ public class Proxy implements IProxy, Runnable
                                 	System.err.println("Error closing InputStream in Proxy");
                                 }
                         }
-                        catch(EOFException eof)
+                        catch(EOFException eof) //user has exited the program, is set to offline and connection is closed
                         {
                                 synchronized(users)
                                 {
@@ -672,6 +675,18 @@ public class Proxy implements IProxy, Runnable
                                         }
                                 }
                                 username = "";
+                                try
+                                {
+                                        objectOutput.close();
+                                        objectInput.close();
+                                        output.close();
+                                        input.close();
+                                }
+                                catch (IOException e)
+                                {
+                                	System.err.println("Error closing InputStream in Proxy");
+                                }
+                                break;
                         }
                         catch (IOException e)
                         {
@@ -686,7 +701,8 @@ public class Proxy implements IProxy, Runnable
         }
 
 
-        private void setQuorums()
+        @SuppressWarnings("unchecked")
+		private void setQuorums()
         {
                 HashMap<FileServerInfo, Integer> servers = new HashMap<FileServerInfo, Integer>();
                 for(FileServerInfo f : serverIdentifier.values())
@@ -780,9 +796,10 @@ public class Proxy implements IProxy, Runnable
                 return version;
         }
 
-        private static Map sortByComparator(Map unsortMap) {
+        @SuppressWarnings({ "rawtypes", "unchecked"})
+		private static Map sortByComparator(Map unsortMap) {
 
-                List list = new LinkedList(unsortMap.entrySet());
+				List list = new LinkedList(unsortMap.entrySet());
 
                 // sort list based on comparator
                 Collections.sort(list, new Comparator() {
