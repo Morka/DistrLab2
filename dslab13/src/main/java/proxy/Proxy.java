@@ -663,7 +663,7 @@ public class Proxy implements IProxy, Runnable
                                 	System.err.println("Error closing InputStream in Proxy");
                                 }
                         }
-                        catch(EOFException eof)
+                        catch(EOFException eof) //user has exited the program, is set to offline and connection is closed
                         {
                                 synchronized(users)
                                 {
@@ -675,6 +675,17 @@ public class Proxy implements IProxy, Runnable
                                         }
                                 }
                                 username = "";
+                                try
+                                {
+                                        objectOutput.close();
+                                        objectInput.close();
+                                        output.close();
+                                        input.close();
+                                }
+                                catch (IOException e)
+                                {
+                                	System.err.println("Error closing InputStream in Proxy");
+                                }
                                 break;
                         }
                         catch (IOException e)
