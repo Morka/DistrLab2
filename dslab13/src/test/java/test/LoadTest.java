@@ -1,6 +1,11 @@
 package test;
 
+import java.io.ByteArrayInputStream;
 import java.io.IOException;
+import java.io.InputStream;
+import java.io.ObjectInputStream;
+import java.io.ObjectOutputStream;
+import java.io.OutputStream;
 
 import proxy.IProxyCli;
 
@@ -8,6 +13,7 @@ import cli.Shell;
 import client.IClientCli;
 import util.ComponentFactory;
 import util.Config;
+import util.NullOutputStream;
 
 public class LoadTest
 {
@@ -30,7 +36,7 @@ public class LoadTest
 
 		try
 		{
-			ProxyThreadTest proxy = new ProxyThreadTest(factory.startProxy(new Config("proxy"), new Shell("proxy", System.out, System.in)));
+			ProxyThreadTest proxy = new ProxyThreadTest(factory.startProxy(new Config("proxy"), new Shell("proxy", NullOutputStream.getInstance(), new ByteArrayInputStream("".getBytes()))));
 			Thread t = new Thread(proxy);
 			t.start();
 		} 
@@ -44,7 +50,7 @@ public class LoadTest
 		{
 			try
 			{
-				ClientThreadTest cT = new ClientThreadTest(factory.startClient(new Config("client"), new Shell("client "+i, System.out, System.in)));
+				ClientThreadTest cT = new ClientThreadTest(factory.startClient(new Config("client"), new Shell("client "+i, NullOutputStream.getInstance(), new ByteArrayInputStream("".getBytes()))));
 				Thread t = new Thread(cT);
 				t.start();
 			} 
@@ -113,9 +119,9 @@ public class LoadTest
 				try
 				{
 					cli.login("alice", "12345");
-					//cli.credits();
-					//cli.list();
-					//cli.logout();
+					cli.credits();
+					cli.list();
+					cli.logout();
 				} 
 				catch (IOException e)
 				{

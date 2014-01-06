@@ -184,7 +184,7 @@ public class ProxyCli implements IProxyCli
 		stop.set(true);
 		shell.writeLine("Exiting...");
 		System.out.println("Proxy");
-		//shell.close();
+		shell.close();
 		//System.out.println("shell is closed");
 		serverSocket.close();
 		System.out.println("serverSocket is closed");

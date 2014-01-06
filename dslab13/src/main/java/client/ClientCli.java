@@ -522,7 +522,7 @@ public class ClientCli implements IClientCli {
 		input.close();
 		output.close();
 		socket.close();
-		//shell.close();
+		shell.close();
 		System.in.close();
 		//System.out.close();
 		return null;
