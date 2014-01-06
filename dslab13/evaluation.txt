@@ -1,0 +1,4 @@
+Windows 7 32 bit
+Intel i7 Dual Core 2.67GHz
+3 GB RAM
+40 clients constantly up and downloading crash the fileserver in about 2 minutes.

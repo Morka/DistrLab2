@@ -95,7 +95,7 @@ public class ProxyCli implements IProxyCli
 					@Override
 					public char[] getPassword() {
 						try {
-							shell.writeLine("Enter pass phrase:");
+							System.out.println("Enter pass phrase:");
 							return new BufferedReader(new InputStreamReader(System.in)).readLine().toCharArray();
 						} catch (IOException e) {
 							System.err.println("ERROR: reading password for privateKey" );
