@@ -148,7 +148,7 @@ public class ProxyCli implements IProxyCli
 		shell.close();
 		serverSocket.close();
 		System.in.close();
-		System.out.close();
+	//	System.out.close();
 		try{
 			UnicastRemoteObject.unexportObject(this.proxyRMI, true);
 		}catch(IOException ex){

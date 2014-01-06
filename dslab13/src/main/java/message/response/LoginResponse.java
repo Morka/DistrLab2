@@ -19,7 +19,8 @@ public class LoginResponse implements Response {
 
 	public enum Type {
 		SUCCESS("Successfully logged in."),
-		WRONG_CREDENTIALS("Wrong username or password.");
+		WRONG_CREDENTIALS("Wrong username or password."),
+		ALREADY_LOGGED_IN("failed. Logout first:");
 
 		String message;
 

@@ -36,6 +36,7 @@ import proxy.IProxyRMI;
 import security.AESChannel;
 import security.Base64Channel;
 import security.Channel;
+import security.Serialization;
 import util.Config;
 import cli.Command;
 import cli.Shell;
@@ -76,10 +77,6 @@ public class ClientCli implements IClientCli {
 	private Channel base64Channel;
 	private boolean isLoggedIn;
 
-	private String bindingName;
-	private int proxyRmiPort;
-	private String keysDir;
-	private String proxyHost;
 	private ArrayList<ICallbackObject> callbacksList;
 
 	private IProxyRMI proxyRMI;
@@ -99,13 +96,6 @@ public class ClientCli implements IClientCli {
 			objectOutput = new ObjectOutputStream(output);
 			objectOutput.flush();
 
-			Config mcConfig = new Config("mc");
-
-			this.bindingName = mcConfig.getString("binding.name");
-			this.proxyRmiPort = mcConfig.getInt("proxy.rmi.port");
-			this.keysDir = mcConfig.getString("keys.dir");
-			this.proxyHost = mcConfig.getString("proxy.host");
-
 			this.bindToProxyRMI();
 			this.callbacksList = new ArrayList<ICallbackObject>();
 
@@ -124,10 +114,14 @@ public class ClientCli implements IClientCli {
 	}
 
 	private void bindToProxyRMI() {
-
+		Config mcConfig = new Config("mc");
+		String bindingName = mcConfig.getString("binding.name");
+		int proxyRmiPort = mcConfig.getInt("proxy.rmi.port");
+		String proxyHost = mcConfig.getString("proxy.host");
+		
 		try {
-			Registry registry = LocateRegistry.getRegistry(this.proxyHost,
-					this.proxyRmiPort);
+			Registry registry = LocateRegistry.getRegistry(proxyHost,
+					proxyRmiPort);
 			this.proxyRMI = (IProxyRMI) registry.lookup(bindingName);
 
 		} catch (RemoteException e) {
@@ -179,9 +173,11 @@ public class ClientCli implements IClientCli {
 	@Override
 	@Command
 	public PublicKeyMessageResponse getProxyPublicKey() throws IOException {
+		Config mcConfig = new Config("client");
+		String keysDir = mcConfig.getString("keys.dir");
 		PublicKeyMessageResponse pKM = this.proxyRMI.getProxyPublicKey();
 
-		PEMWriter write = new PEMWriter(new PrintWriter(new File(this.keysDir,
+		PEMWriter write = new PEMWriter(new PrintWriter(new File(keysDir,
 				"proxy.pub.pem")));
 		write.writeObject(pKM.getPublicKey());
 		write.close();
@@ -226,31 +222,17 @@ public class ClientCli implements IClientCli {
 	}
 
 	private void sendToServer(Request request) throws IOException {
-		byte[] toSend = this.serialize(request);
+		byte[] toSend = Serialization.serialize(request);
 
-		if (this.aesChannel == null && request instanceof LoginRequest) {
-			this.objectOutput.writeObject(toSend);
-			this.objectOutput.flush();
-		} else {
+		if (this.aesChannel == null) {
+				this.objectOutput.writeObject(toSend);
+				this.objectOutput.flush();
+		}else {
 			byte[] encrypted = aesChannel.encode(toSend);
 			encrypted = base64Channel.encode(encrypted);
 			this.objectOutput.writeObject(encrypted);
 			this.objectOutput.flush();
 		}
-	}
-
-	private byte[] serialize(Object obj) throws IOException {
-		ByteArrayOutputStream bos = new ByteArrayOutputStream();
-		ObjectOutputStream oos = new ObjectOutputStream(bos);
-		oos.writeObject(obj);
-		return bos.toByteArray();
-	}
-
-	private Object deserialize(byte[] bytes) throws IOException,
-			ClassNotFoundException {
-		ByteArrayInputStream bis = new ByteArrayInputStream(bytes);
-		ObjectInputStream ois = new ObjectInputStream(bis);
-		return ois.readObject();
 	}
 
 	private Response receiveFromServer() throws IOException {
@@ -259,11 +241,11 @@ public class ClientCli implements IClientCli {
 				byte[] receive = (byte[]) this.objectInput.readObject();
 				receive = this.base64Channel.decode(receive);
 				byte[] decrypted = this.aesChannel.decode(receive);
-				Response response = (Response) this.deserialize(decrypted);
+				Response response = (Response) Serialization.deserialize(decrypted);
 				return response;
 			} else {
 				byte[] receive = (byte[]) this.objectInput.readObject();
-				Response response = (Response) this.deserialize(receive);
+				Response response = (Response) Serialization.deserialize(receive);
 				return response;
 			}
 
@@ -284,6 +266,10 @@ public class ClientCli implements IClientCli {
 	public LoginResponse login(String username, String password)
 			throws IOException {
 
+		if(this.isLoggedIn == true){
+			return new LoginResponse(Type.ALREADY_LOGGED_IN);
+		}
+		
 		assert username.matches("[" + B64 + "]{1,24}") : "username not applicable"; // username
 																					// must
 																					// be
@@ -539,31 +525,27 @@ public class ClientCli implements IClientCli {
 		socket.close();
 		shell.close();
 		System.in.close();
-		System.out.close();
+		//System.out.close();
 		return null;
 	}
 
 	private void exitWithoutConnection() throws IOException {
 		shell.writeLine("Exiting...");
+		int i = 0;
+		while (!callbacksList.isEmpty()) {
+			try {
+				UnicastRemoteObject.unexportObject(callbacksList.get(i), true);
+			} catch (NoSuchObjectException e1) {
+				System.err.println("Nothing to unexport");
+			}
+
+			callbacksList.remove(i);
+			i++;
+		}
 		shell.close();
 		System.in.close();
 		System.out.close();
 	}
 
-	public Shell getShell() {
-		return shell;
-	}
-
-	public void setShell(Shell shell) {
-		this.shell = shell;
-	}
-
-	public Config getConfig() {
-		return config;
-	}
-
-	public void setConfig(Config config) {
-		this.config = config;
-	}
 
 }

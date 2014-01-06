@@ -28,6 +28,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import security.AESChannel;
 import security.Base64Channel;
 import security.Channel;
+import security.Serialization;
 import util.ChecksumUtils;
 import util.Config;
 import util.HmacHelper;
@@ -538,31 +539,17 @@ public class Proxy implements IProxy, Runnable
     		
     		return loginResponse;
     	}
-    	
-    	private byte[] serialize(Object obj) throws IOException {
-    		ByteArrayOutputStream bos = new ByteArrayOutputStream();
-    		ObjectOutputStream oos = new ObjectOutputStream(bos);
-    		oos.writeObject(obj);
-    		return bos.toByteArray();
-    	}
-
-    	private Object deserialize(byte[] bytes) throws IOException,
-    			ClassNotFoundException {
-    		ByteArrayInputStream bis = new ByteArrayInputStream(bytes);
-    		ObjectInputStream ois = new ObjectInputStream(bis);
-    		return ois.readObject();
-    	}
         
         private Request receiveRequest() throws IOException, ClassNotFoundException {
     		Request request = null;
     		if (this.aesChannel == null) {
     			byte[] message = (byte[]) this.objectInput.readObject();
-    			request = (Request) this.deserialize(message);
+    			request = (Request) Serialization.deserialize(message);
     		} else {
     			byte[] message = (byte[]) this.objectInput.readObject();
     			message = this.base64Channel.decode(message);
     			byte[] decrypted = this.aesChannel.decode(message);
-    			request = (Request) this.deserialize(decrypted);
+    			request = (Request) Serialization.deserialize(decrypted);
     		}
 
     		return request;
@@ -572,11 +559,11 @@ public class Proxy implements IProxy, Runnable
     	private void sendResponse(Response response) throws SocketException,
     			EOFException, IOException {
     		if (this.loggedIn == false) {
-    			byte[] toSend = this.serialize(response);
+    			byte[] toSend = Serialization.serialize(response);
     			this.objectOutput.writeObject(toSend);
     			this.objectOutput.flush();
     		} else {
-    			byte[] toSend = this.serialize(response);
+    			byte[] toSend = Serialization.serialize(response);
     			byte[] encrypted = this.aesChannel.encode(toSend);
     			encrypted = this.base64Channel.encode(encrypted);
     			this.objectOutput.writeObject(encrypted);
