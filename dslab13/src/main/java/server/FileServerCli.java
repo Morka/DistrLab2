@@ -49,11 +49,17 @@ public class FileServerCli implements IFileServerCli
 	{
 		stop.set(true);
 		shell.writeLine("Exiting...");
-		shell.close();
+		//shell.close();
 		System.in.close();
-		System.out.close();
-		serverSocket.close();
-		datagramSocket.close();
+		
+		//System.out.close();
+		if(serverSocket != null){
+			serverSocket.close();
+		}
+		if(datagramSocket != null){
+			datagramSocket.close();
+		}
+		System.out.println("Fileserver is closed");
 		return null;
 	}
 }

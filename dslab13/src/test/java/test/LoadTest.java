@@ -55,7 +55,7 @@ public class LoadTest
 		}
 	}
 	
-	static class ProxyThreadTest implements Runnable
+	public static class ProxyThreadTest implements Runnable
 	{
 		private IProxyCli proxy;
 		

@@ -40,7 +40,7 @@ public class ComponentFactory {
 	 */
 	public IProxyCli startProxy(Config config, Shell shell) throws Exception {
 		// TODO: create a new proxy instance (including a Shell) and start it
-		ProxyCli proxy = new ProxyCli(config, shell);
+		ProxyCli proxy = new ProxyCli(new Config("proxy"), shell);
 		shell.register(proxy);
 		Thread t = new Thread(shell);
 		t.start();

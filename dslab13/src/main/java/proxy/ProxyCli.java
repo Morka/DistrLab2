@@ -1,6 +1,10 @@
 package proxy;
 
+import java.io.BufferedReader;
+import java.io.FileNotFoundException;
+import java.io.FileReader;
 import java.io.IOException;
+import java.io.InputStreamReader;
 import java.net.ServerSocket;
 
 import java.rmi.AlreadyBoundException;
@@ -9,9 +13,14 @@ import java.rmi.RemoteException;
 import java.rmi.registry.LocateRegistry;
 import java.rmi.registry.Registry;
 import java.rmi.server.UnicastRemoteObject;
+import java.security.KeyPair;
+import java.security.PrivateKey;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicBoolean;
+
+import org.bouncycastle.openssl.PEMReader;
+import org.bouncycastle.openssl.PasswordFinder;
 
 import util.Config;
 
@@ -29,6 +38,7 @@ public class ProxyCli implements IProxyCli
 	private ProxyOverseer overseer;
 	private AtomicBoolean stop = new AtomicBoolean(false);
 	private Thread t; // overseer thread
+	protected static PrivateKey privateKey;
 	
 	private ConcurrentHashMap<String, UserInfo> users; 
 
@@ -42,6 +52,7 @@ public class ProxyCli implements IProxyCli
 
 	public ProxyCli(Config config, Shell shell)
 	{
+		readPrivateKey(config.getString("key"));
 		this.shell = shell;
 		users = UserData.getInstance().users;
 		serverIdentifier = ServerData.getInstance().servers;
@@ -73,6 +84,33 @@ public class ProxyCli implements IProxyCli
 				e.printStackTrace();
 			}
         }
+	}
+	
+	private void readPrivateKey(String pathToPrivateKey){
+		PEMReader in = null;
+		try {
+			in = new PEMReader(new FileReader(pathToPrivateKey), new PasswordFinder() {
+					@Override
+					public char[] getPassword() {
+						System.out.println("Enter pass phrase:");
+						try {
+							return new BufferedReader(new InputStreamReader(System.in)).readLine().toCharArray();
+						} catch (IOException e) {
+							System.err.println("ERROR: reading password for privateKey" );
+							return null;
+						}
+					}
+			});
+		} catch (FileNotFoundException e) {
+			System.err.println("ERROR: Couldnt read privateKey file");
+		}
+		try{
+			KeyPair keyPair = (KeyPair) in.readObject(); 
+			privateKey = keyPair.getPrivate();
+			in.close();
+		}catch(IOException ex){
+			System.err.println("ERROR: reading Private Key - most likely wrong password");
+		}
 	}
 	
 
@@ -145,8 +183,11 @@ public class ProxyCli implements IProxyCli
 	{	
 		stop.set(true);
 		shell.writeLine("Exiting...");
-		shell.close();
+		System.out.println("Proxy");
+		//shell.close();
+		//System.out.println("shell is closed");
 		serverSocket.close();
+		System.out.println("serverSocket is closed");
 		System.in.close();
 	//	System.out.close();
 		try{
@@ -158,6 +199,8 @@ public class ProxyCli implements IProxyCli
 		try {
 			this.registry.unbind(this.bindingName);
 		} catch (NotBoundException e) {	}
+		
+		System.out.println("Proxy is closed");
 		return null;
 	}
 }

@@ -34,7 +34,7 @@ public class LoginHandler {
 	}
 	
 	private byte[] decodeAndDecrypt(String toDeDe){
-		Channel rsaChannel = new RSAChannel(ProxyMain.privateKey);
+		Channel rsaChannel = new RSAChannel(ProxyCli.privateKey);
 		byte[] decoded = this.base64Channel.decode(toDeDe);
 		return rsaChannel.decode(decoded);
 	}

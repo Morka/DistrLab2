@@ -521,7 +521,7 @@ public class Proxy implements IProxy, Runnable
     				this.loggedIn = false;
     				this.aesChannel = null;
     				this.username = "";
-    				return new MessageResponse("You were logged out");
+    				return new MessageResponse("Successfully logged out");
     			}
     		}
         }
