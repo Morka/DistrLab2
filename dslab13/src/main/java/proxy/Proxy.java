@@ -646,6 +646,8 @@ public class Proxy implements IProxy, Runnable
                                         this.sendResponse(response);
 
                                 }
+            					else{
+            					}
                         }
                         catch(SocketException se)
                         {
@@ -673,6 +675,7 @@ public class Proxy implements IProxy, Runnable
                                         }
                                 }
                                 username = "";
+                                break;
                         }
                         catch (IOException e)
                         {
