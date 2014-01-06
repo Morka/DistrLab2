@@ -108,7 +108,6 @@ public class RSAChannel implements Channel{
 			System.err.println("ERROR: trying to doFinal() - illegal Block Size - Decrypting");
 		} catch (BadPaddingException e) {
 			System.err.println("ERROR: trying to doFinal() - Bad Padding - Decrypting");
-			e.printStackTrace();
 		}		
 
 		return bytesToDecrypt;

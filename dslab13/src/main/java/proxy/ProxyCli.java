@@ -63,7 +63,7 @@ public class ProxyCli implements IProxyCli
 		} 
 		catch (IOException e)
 		{
-			e.printStackTrace();
+			System.err.println("Error connecting to Server Socket");
 		}
 
 
@@ -82,7 +82,7 @@ public class ProxyCli implements IProxyCli
         	try {
 				this.exit();
 			} catch (IOException e) {
-				e.printStackTrace();
+				System.err.println("Error calling exit in Proxy");
 			}
         }
 	}
@@ -125,7 +125,6 @@ public class ProxyCli implements IProxyCli
 			stub = (IProxyRMI)UnicastRemoteObject.exportObject(this.proxyRMI, 0);
 		} catch (RemoteException e) {
 			System.err.println("Couldn't export proxyRMI");
-			//e.printStackTrace();
 			return null;
 		}
     	    	
@@ -135,7 +134,6 @@ public class ProxyCli implements IProxyCli
     	
     	} catch (RemoteException e) {
     		System.err.println(e.getMessage());
-			e.printStackTrace();
 			return null;
 		} catch (AlreadyBoundException e) {
 			System.err.println("Registry is already in use");
@@ -196,7 +194,7 @@ public class ProxyCli implements IProxyCli
 		try{
 			UnicastRemoteObject.unexportObject(this.proxyRMI, true);
 		}catch(IOException ex){
-			ex.printStackTrace();
+			System.err.println("Error removing RMI reference");
 		}
 		
 		try {

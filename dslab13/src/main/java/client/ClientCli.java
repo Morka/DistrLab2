@@ -1,8 +1,6 @@
 package client;
 
 import java.io.BufferedReader;
-import java.io.ByteArrayInputStream;
-import java.io.ByteArrayOutputStream;
 import java.io.EOFException;
 import java.io.File;
 import java.io.FileNotFoundException;
@@ -47,7 +45,6 @@ import message.request.CreditsRequest;
 import message.request.DownloadFileRequest;
 import message.request.DownloadTicketRequest;
 import message.request.ListRequest;
-import message.request.LoginRequest;
 import message.request.LoginRequestFinalHandshake;
 import message.request.LoginRequestHandshake;
 import message.request.LogoutRequest;
@@ -104,12 +101,13 @@ public class ClientCli implements IClientCli {
 				shell.writeLine("Could not find server.");
 				exitWithoutConnection();
 			} catch (IOException e) {
-				e.printStackTrace();
+				System.err.println("Error writing to console");
 			}
 		} catch (UnknownHostException e) {
-			e.printStackTrace();
-		} catch (IOException e) {
-			e.printStackTrace();
+			System.err.println("Error Host is unknown");
+		} catch (IOException e)
+		{
+			System.err.println("Error Socket connection");
 		}
 	}
 
@@ -125,11 +123,9 @@ public class ClientCli implements IClientCli {
 			this.proxyRMI = (IProxyRMI) registry.lookup(bindingName);
 
 		} catch (RemoteException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
+			System.err.println("Error finding Registry");
 		} catch (NotBoundException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
+			System.err.println("Error binding with Registry");
 		}
 
 		System.out.println("Client is binded");
@@ -255,9 +251,7 @@ public class ClientCli implements IClientCli {
 		} catch (SocketException se) {
 			shell.writeLine("Socket closed unexpectedly.");
 			exit();
-		} catch (ClassNotFoundException e) {
-			e.printStackTrace();
-		}
+		} catch (ClassNotFoundException e) {}
 		return null;
 	}
 
@@ -439,9 +433,7 @@ public class ClientCli implements IClientCli {
 		} catch (SocketException se) {
 			shell.writeLine("Socket closed unexpectedly.");
 			exit();
-		} catch (ClassNotFoundException e) {
-			e.printStackTrace();
-		}
+		} catch (ClassNotFoundException e) {}
 		return null;
 	}
 

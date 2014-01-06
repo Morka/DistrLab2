@@ -39,13 +39,11 @@ public class HmacHelper
 			} 
 			catch (FileNotFoundException e)
 			{
-				// TODO Auto-generated catch block
-				e.printStackTrace();
+				System.err.println("Error Could not find File for HMac key");
 			} 
 			catch (IOException e)
 			{
-				// TODO Auto-generated catch block
-				e.printStackTrace();
+				System.err.println("Error reading HMac Key");
 			}
 			key = new SecretKeySpec(sKey.getBytes(), "HmacSHA256");
 			try
@@ -57,12 +55,10 @@ public class HmacHelper
 			} 
 			catch (NoSuchAlgorithmException e)
 			{
-				// TODO Auto-generated catch block
-				e.printStackTrace();
+				System.err.println("Error Hmac could not be created");
 			} catch (InvalidKeyException e)
 			{
-				// TODO Auto-generated catch block
-				e.printStackTrace();
+				System.err.println("Error invalid key for HMac");
 			}
 		}
 		else
@@ -78,15 +74,13 @@ public class HmacHelper
 			hMac = Mac.getInstance("HmacSHA256");
 			hMac.reset();
 			hMac.init(key);
-		} catch (NoSuchAlgorithmException e)
-		{
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		} catch (InvalidKeyException e)
-		{
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		}
+		}	catch (NoSuchAlgorithmException e)
+			{
+				System.err.println("Error Hmac could not be created");
+			} catch (InvalidKeyException e)
+			{
+				System.err.println("Error invalid key for HMac");
+			}
 		byte[] hash = hMac.doFinal();
 		return new String(channel.encode(hash)) + " " + message;
 	}
@@ -100,12 +94,10 @@ public class HmacHelper
 			hMac.init(key);
 		} catch (NoSuchAlgorithmException e)
 		{
-			// TODO Auto-generated catch block
-			e.printStackTrace();
+			System.err.println("Error Hmac could not be created");
 		} catch (InvalidKeyException e)
 		{
-			// TODO Auto-generated catch block
-			e.printStackTrace();
+			System.err.println("Error invalid key for HMac");
 		}
 		byte[] generatedHash = createHash(originalText).getBytes();
 		return MessageDigest.isEqual(channel.decode(computedHash), channel.decode(generatedHash));

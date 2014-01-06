@@ -3,10 +3,7 @@ package server;
 import java.io.IOException;
 import java.net.DatagramSocket;
 import java.net.ServerSocket;
-import java.util.concurrent.ExecutorService;
 import java.util.concurrent.atomic.AtomicBoolean;
-
-import proxy.ProxyOverseer;
 
 import util.Config;
 
@@ -36,7 +33,7 @@ public class FileServerCli implements IFileServerCli
 		} 
 		catch (IOException e)
 		{
-			e.printStackTrace();
+			System.err.println("Error creating new Server Socket");
 		}
 		overseer = new FileServerOverseer(config, serverSocket, datagramSocket, stop);
 		t = new Thread(overseer);

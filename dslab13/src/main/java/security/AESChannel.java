@@ -113,11 +113,9 @@ public class AESChannel implements Channel {
 			bytesToDecrypt = crypt.doFinal(bytesToDecrypt);
 		} catch (IllegalBlockSizeException e) {
 			System.err.println("ERROR: trying to doFinal() - illegal Block Size");
-			e.printStackTrace();
 
 		} catch (BadPaddingException e) {
 			System.err.println("ERROR: trying to doFinal() - Bad Padding");
-			e.printStackTrace();
 
 		}
 

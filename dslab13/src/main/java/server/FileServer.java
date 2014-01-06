@@ -9,7 +9,6 @@ import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.io.PrintWriter;
 import java.net.Socket;
-import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Set;
@@ -21,21 +20,14 @@ import util.HmacHelper;
 
 import message.Request;
 import message.Response;
-import message.request.BuyRequest;
-import message.request.CreditsRequest;
 import message.request.DownloadFileRequest;
-import message.request.DownloadTicketRequest;
 import message.request.InfoRequest;
 import message.request.ListRequest;
-import message.request.LoginRequest;
-import message.request.LogoutRequest;
 import message.request.UploadRequest;
 import message.request.VersionRequest;
 import message.response.DownloadFileResponse;
-import message.response.DownloadTicketResponse;
 import message.response.InfoResponse;
 import message.response.ListResponse;
-import message.response.LoginResponse;
 import message.response.MessageResponse;
 import message.response.VersionResponse;
 import model.DownloadTicket;
@@ -65,7 +57,7 @@ public class FileServer implements IFileServer, Runnable
 		} 
 		catch (IOException e)
 		{
-			e.printStackTrace();
+			System.err.println("Error creating new Outpustream for Fileserver");
 		}  
 	}
 
@@ -118,10 +110,7 @@ public class FileServer implements IFileServer, Runnable
 					{
 						return (MessageResponse)objectInput.readObject();
 					} 
-					catch (ClassNotFoundException e)
-					{
-						e.printStackTrace();
-					}
+					catch (ClassNotFoundException e) {}
 				} 
 				finally 
 				{
@@ -280,12 +269,11 @@ public class FileServer implements IFileServer, Runnable
 			}
 			catch (IOException e)
 			{
-				e.printStackTrace();
+				System.err.println("Error handling with Requests from Proxy");
 				return;
 			} 
 			catch (ClassNotFoundException e)
 			{
-				e.printStackTrace();
 				return;
 			}
 		}
@@ -301,7 +289,7 @@ public class FileServer implements IFileServer, Runnable
 		} 
 		catch (IOException e)
 		{
-			e.printStackTrace();
+			System.err.println("Error closing Streams and the socket connection");
 		}
 	}
 }

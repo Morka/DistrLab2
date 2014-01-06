@@ -10,6 +10,8 @@ import java.net.InetAddress;
 import java.net.Socket;
 import java.net.SocketException;
 import java.rmi.RemoteException;
+import java.security.InvalidKeyException;
+import java.security.NoSuchAlgorithmException;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
@@ -105,7 +107,7 @@ public class Proxy implements IProxy, Runnable
                 }
                 catch (IOException e)
                 {
-                        e.printStackTrace();
+                	System.err.println("Error using OutputStream in Proxy");
                 }
                 this.proxyRMI = proxyRMI;
                 
@@ -237,10 +239,7 @@ public class Proxy implements IProxy, Runnable
                                                                         }
                                                                 }
                                                         }
-                                                        catch (ClassNotFoundException e)
-                                                        {
-                                                                e.printStackTrace();
-                                                        }
+                                                        catch (ClassNotFoundException e) {}
                                                 }
                                         }
                                         return new ListResponse("", files);
@@ -365,10 +364,7 @@ public class Proxy implements IProxy, Runnable
                                                         out2.close();
                                                         socket2.close();
                                                 }
-                                        } catch (ClassNotFoundException e) {
-                                                // TODO Auto-generated catch block
-                                                e.printStackTrace();
-                                        }
+                                        } catch (ClassNotFoundException e) {}
                                 }
                         }
                         if (version != -1) {
@@ -476,11 +472,7 @@ public class Proxy implements IProxy, Runnable
                                                                 return upload(request);
                                                         }
                                                 }
-                                                catch (ClassNotFoundException e)
-                                                {
-                                                        // TODO Auto-generated catch block
-                                                        e.printStackTrace();
-                                                }
+                                                catch (ClassNotFoundException e) {}
 
                                                 long fileSize = s.length();
                                                 synchronized(users)
@@ -666,7 +658,7 @@ public class Proxy implements IProxy, Runnable
                                 }
                                 catch (IOException e)
                                 {
-                                        e.printStackTrace();
+                                	System.err.println("Error closing InputStream in Proxy");
                                 }
                         }
                         catch(EOFException eof)
@@ -684,13 +676,12 @@ public class Proxy implements IProxy, Runnable
                         }
                         catch (IOException e)
                         {
-                                e.printStackTrace();
-                                return;
+                        	System.err.println("Error: " + e.getMessage());
+                            return;
                         }
                         catch (ClassNotFoundException e)
                         {
-                                e.printStackTrace();
-                                return;
+                            return;
                         }
                 }
         }
@@ -743,10 +734,7 @@ public class Proxy implements IProxy, Runnable
                 }
                 try {
 					this.proxyRMI.setQuorums(readQuorum.size(), writeQuorum.size());
-				} catch (RemoteException e) {
-					// TODO Auto-generated catch block
-					e.printStackTrace();
-				}
+				} catch (RemoteException e) {}
         }
 
         private int getVersionNumberFromFileServer(String filename, FileServerInfo info)
@@ -787,12 +775,10 @@ public class Proxy implements IProxy, Runnable
                 }
                 catch (IOException e)
                 {
-                        e.printStackTrace();
+                	System.err.println("Error trying to get Version Number of File - connection to socket failed");
                 }
                 catch (ClassNotFoundException e)
-                {
-                        e.printStackTrace();
-                }
+                {}
                 return version;
         }
 
