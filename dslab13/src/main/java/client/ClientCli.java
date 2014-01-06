@@ -514,7 +514,6 @@ public class ClientCli implements IClientCli {
 	@Command
 	public MessageResponse exit() throws IOException {
 		shell.writeLine("Exiting...");
-		// TODO: IS a logout at this point okay? @christian
 		if (this.isLoggedIn == true) {
 			this.logout();
 		}
@@ -523,7 +522,7 @@ public class ClientCli implements IClientCli {
 		input.close();
 		output.close();
 		socket.close();
-		shell.close();
+		//shell.close();
 		System.in.close();
 		//System.out.close();
 		return null;
@@ -532,15 +531,18 @@ public class ClientCli implements IClientCli {
 	private void exitWithoutConnection() throws IOException {
 		shell.writeLine("Exiting...");
 		int i = 0;
-		while (!callbacksList.isEmpty()) {
-			try {
-				UnicastRemoteObject.unexportObject(callbacksList.get(i), true);
-			} catch (NoSuchObjectException e1) {
-				System.err.println("Nothing to unexport");
-			}
+		if (callbacksList != null) {
+			while (!callbacksList.isEmpty()) {
+				try {
+					UnicastRemoteObject.unexportObject(callbacksList.get(i),
+							true);
+				} catch (NoSuchObjectException e1) {
+					System.err.println("Nothing to unexport");
+				}
 
-			callbacksList.remove(i);
-			i++;
+				callbacksList.remove(i);
+				i++;
+			}
 		}
 		shell.close();
 		System.in.close();
