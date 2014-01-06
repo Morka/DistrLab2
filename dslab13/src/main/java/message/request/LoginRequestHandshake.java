@@ -5,7 +5,6 @@ public class LoginRequestHandshake extends LoginRequest{
 	
 	public LoginRequestHandshake(String username, String password) {
 		super(username, password);
-		// TODO Auto-generated constructor stub
 	}
 	
 }
