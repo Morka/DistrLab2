@@ -1,6 +1,5 @@
 package server;
 
-import proxy.ProxyCli;
 import util.Config;
 import cli.Shell;
 

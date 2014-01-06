@@ -6,6 +6,10 @@ import message.Request;
 
 public class PublicKeySetRequest implements Request{
 	
+	/**
+	 * 
+	 */
+	private static final long serialVersionUID = 1L;
 	private PublicKey publicKey;
 	
 	public PublicKeySetRequest(PublicKey publicKey) {

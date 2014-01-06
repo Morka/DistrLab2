@@ -3,10 +3,7 @@ package server;
 import java.io.IOException;
 import java.net.DatagramSocket;
 import java.net.ServerSocket;
-import java.util.concurrent.ExecutorService;
 import java.util.concurrent.atomic.AtomicBoolean;
-
-import proxy.ProxyOverseer;
 
 import util.Config;
 

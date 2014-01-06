@@ -1,8 +1,6 @@
 package client;
 
 import java.io.BufferedReader;
-import java.io.ByteArrayInputStream;
-import java.io.ByteArrayOutputStream;
 import java.io.EOFException;
 import java.io.File;
 import java.io.FileNotFoundException;
@@ -47,7 +45,6 @@ import message.request.CreditsRequest;
 import message.request.DownloadFileRequest;
 import message.request.DownloadTicketRequest;
 import message.request.ListRequest;
-import message.request.LoginRequest;
 import message.request.LoginRequestFinalHandshake;
 import message.request.LoginRequestHandshake;
 import message.request.LogoutRequest;
