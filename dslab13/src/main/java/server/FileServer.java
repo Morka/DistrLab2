@@ -105,7 +105,7 @@ public class FileServer implements IFileServer, Runnable
 					
 					objectOutput.writeObject(fileResponse);
 					objectOutput.flush();
-					System.out.println("Sent file");
+					System.out.println("Sent File: " + ticket.getFilename());
 					try
 					{
 						return (MessageResponse)objectInput.readObject();
@@ -178,6 +178,7 @@ public class FileServer implements IFileServer, Runnable
 			out.flush();
 			out.close();
 			MessageResponse response = new MessageResponse("File uploaded to server.");
+			System.out.println("Uploaded File to Server");
 			return new MessageResponse(hMac.createHash(response.toString()), response.getMessage());
 		}
 	} 

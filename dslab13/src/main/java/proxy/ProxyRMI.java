@@ -203,8 +203,6 @@ public class ProxyRMI implements IProxyRMI {
 		Config config = new Config("proxy");
 		String pathToPublicKey = config.getString("publicKey");
 
-		System.out.println(pathToPublicKey);
-
 		PublicKey publicKey = null;
 		PEMReader in = null;
 		try {

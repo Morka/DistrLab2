@@ -94,8 +94,8 @@ public class ProxyCli implements IProxyCli
 			in = new PEMReader(new FileReader(pathToPrivateKey), new PasswordFinder() {
 					@Override
 					public char[] getPassword() {
-						System.out.println("Enter pass phrase:");
 						try {
+							shell.writeLine("Enter pass phrase:");
 							return new BufferedReader(new InputStreamReader(System.in)).readLine().toCharArray();
 						} catch (IOException e) {
 							System.err.println("ERROR: reading password for privateKey" );
@@ -184,11 +184,9 @@ public class ProxyCli implements IProxyCli
 	{	
 		stop.set(true);
 		shell.writeLine("Exiting...");
-		System.out.println("Proxy");
 		shell.close();
-		//System.out.println("shell is closed");
 		serverSocket.close();
-		System.out.println("serverSocket is closed");
+		shell.writeLine("serverSocket is closed");
 		System.in.close();
 	//	System.out.close();
 		try{
@@ -201,7 +199,6 @@ public class ProxyCli implements IProxyCli
 			this.registry.unbind(this.bindingName);
 		} catch (NotBoundException e) {	}
 		
-		System.out.println("Proxy is closed");
 		return null;
 	}
 }

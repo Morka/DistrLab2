@@ -47,7 +47,6 @@ public class FileServerListener implements Runnable
 				try {
 				if (((System.currentTimeMillis() - time) > timeout) && serverIdentifier.get(key).isOnline()) {
 					this.setFileServerOffline(key);
-					System.out.println("One File Server has been set on offline.");
 				}
 				} catch (NullPointerException e1) {
 					System.out.println("Noch keine Server erkannt");

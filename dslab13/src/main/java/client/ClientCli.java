@@ -128,7 +128,7 @@ public class ClientCli implements IClientCli {
 			System.err.println("Error binding with Registry");
 		}
 
-		System.out.println("Client is binded");
+		//System.out.println("Client is bound");
 	}
 
 	@Override
@@ -193,7 +193,6 @@ public class ClientCli implements IClientCli {
 		String pathToPublicKey = config.getString("keys.dir");
 		pathToPublicKey += "/" + username + ".pub.pem";
 
-		System.out.println(pathToPublicKey);
 
 		PublicKey publicKey = null;
 		PEMReader in = null;
