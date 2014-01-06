@@ -76,6 +76,8 @@ public class FileServerListener implements Runnable
 					InetAddress address = p.getAddress();
 					String[] received = new String(p.getData(), 0, p.getLength()).split(" ");
 					int port = Integer.parseInt(received[1]);
+					assert received[0].matches("!alive");
+					assert received[1].matches("1[0-9]{4}");
 					lastOnline.put(port, current);
 					
 					synchronized (serverIdentifier) {

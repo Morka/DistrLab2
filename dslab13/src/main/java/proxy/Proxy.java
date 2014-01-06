@@ -516,7 +516,7 @@ public class Proxy implements IProxy, Runnable
     				users.put(username, info);
     				this.loggedIn = false;
     				this.aesChannel = null;
-    				this.proxyRMI.unsubscribe();
+    				//this.proxyRMI.unsubscribe();
     				this.username = "";
     				return new MessageResponse("Successfully logged out");
     			}
@@ -583,19 +583,17 @@ public class Proxy implements IProxy, Runnable
     						return new LoginResponse(Type.SUCCESS);
 
     					}else{
-    						System.err.println("Not Logged In 1");
-    						//TODO: If this fails, the server tries to send it without aes encryption altough the client waits for such an encrpytion... therefore the client breaks down.
+    						System.err.println("Not Logged In");
     						return new LoginResponse(Type.WRONG_CREDENTIALS);
     					}
     				}
     			}else{
-    				System.err.println("Not Logged In 2");
+    				System.err.println("Not Logged In");
     				return new LoginResponse(Type.WRONG_CREDENTIALS);
     			}
     		}
     		else{
-    			System.err.println("Not Logged In 3");
-    			//TODO: If this fails, the server tries to send it without aes encryption altough the client waits for such an encrpytion... therefore the client breaks down.
+    			System.err.println("Not Logged In");
     			return new LoginResponse(Type.WRONG_CREDENTIALS);
     		}
     	}

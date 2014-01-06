@@ -44,10 +44,16 @@ public class ProxyRMI implements IProxyRMI {
 	}
 	
 	public void processDownloadCounterIncrease(String filename, int downloadCounter) throws RemoteException{
-		for(CallbackProperties call : callbackList){
-			if(call.getFilename().equals(filename)){
-				if(call.getNumberOfDownlaods() == downloadCounter){
-					call.getCallback().callback("Notification: " + call.getFilename() + " got downloaded " + call.getNumberOfDownlaods() + " times!");
+		for(int i = 0; i < callbackList.size(); i++){
+			if(callbackList.get(i).getFilename().equals(filename)){
+				if(callbackList.get(i).getNumberOfDownlaods() == downloadCounter){
+					try{
+						callbackList.get(i).getCallback().callback("Notification: " + callbackList.get(i).getFilename() + " got downloaded " + callbackList.get(i).getNumberOfDownlaods() + " times!");
+					}catch(RemoteException ex){
+						System.out.println("Couldn't Call back - most likely recepient is offline");
+					}finally{
+						this.callbackList.remove(i);
+					}
 				}
 			}
 		}
