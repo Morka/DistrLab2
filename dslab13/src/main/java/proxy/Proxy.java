@@ -1,7 +1,5 @@
 package proxy;
 
-import java.io.ByteArrayInputStream;
-import java.io.ByteArrayOutputStream;
 import java.io.EOFException;
 import java.io.IOException;
 import java.io.InputStream;
@@ -520,6 +518,7 @@ public class Proxy implements IProxy, Runnable
     				users.put(username, info);
     				this.loggedIn = false;
     				this.aesChannel = null;
+    				this.proxyRMI.unsubscribe();
     				this.username = "";
     				return new MessageResponse("Successfully logged out");
     			}
@@ -697,7 +696,8 @@ public class Proxy implements IProxy, Runnable
         }
 
 
-        private void setQuorums()
+        @SuppressWarnings("unchecked")
+		private void setQuorums()
         {
                 HashMap<FileServerInfo, Integer> servers = new HashMap<FileServerInfo, Integer>();
                 for(FileServerInfo f : serverIdentifier.values())
@@ -796,9 +796,10 @@ public class Proxy implements IProxy, Runnable
                 return version;
         }
 
-        private static Map sortByComparator(Map unsortMap) {
+        @SuppressWarnings({ "rawtypes", "unchecked"})
+		private static Map sortByComparator(Map unsortMap) {
 
-                List list = new LinkedList(unsortMap.entrySet());
+				List list = new LinkedList(unsortMap.entrySet());
 
                 // sort list based on comparator
                 Collections.sort(list, new Comparator() {

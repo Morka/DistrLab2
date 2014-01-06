@@ -9,6 +9,7 @@ import java.io.ObjectOutputStream;
 import java.io.PrintWriter;
 import java.net.Socket;
 import java.rmi.RemoteException;
+import java.rmi.server.UnicastRemoteObject;
 import java.security.PublicKey;
 import java.util.ArrayList;
 import java.util.HashSet;
@@ -39,6 +40,7 @@ public class ProxyRMI implements IProxyRMI {
 	
 	public ProxyRMI(){
 		this.callbackList = new ArrayList<CallbackProperties>();
+		
 	}
 	
 	public void processDownloadCounterIncrease(String filename, int downloadCounter) throws RemoteException{
@@ -50,8 +52,7 @@ public class ProxyRMI implements IProxyRMI {
 			}
 		}
 	}
-	
-	
+
 	@Override
 	public void setQuorums(int readQ, int writeQ) throws RemoteException {
 		this.readQ = readQ;
@@ -225,6 +226,15 @@ public class ProxyRMI implements IProxyRMI {
 		}
 
 		return publicKey;
+	}
+	
+	public void unsubscribe() throws RemoteException{
+		int i = 0;
+		
+		while(!this.callbackList.isEmpty()){
+			this.callbackList.remove(i);
+			i++;
+		}
 	}
 
 	@Override

@@ -26,5 +26,7 @@ public interface IProxyRMI extends Remote{
 	public MessageResponse setUserPublicKey(String username, PublicKeySetRequest publicKey) throws RemoteException;
 	
 	public void processDownloadCounterIncrease(String filename, int downloadCounter) throws RemoteException;
+	
+	public void unsubscribe() throws RemoteException;
 
 }
