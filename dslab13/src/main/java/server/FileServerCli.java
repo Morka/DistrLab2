@@ -56,7 +56,6 @@ public class FileServerCli implements IFileServerCli
 		if(datagramSocket != null){
 			datagramSocket.close();
 		}
-		System.out.println("Fileserver is closed");
 		return null;
 	}
 }
