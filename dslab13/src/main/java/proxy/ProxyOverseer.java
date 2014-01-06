@@ -38,7 +38,7 @@ public class ProxyOverseer implements Runnable
 		this.users = UserData.getInstance().users;
 		this.stop = stop;
 		this.serverSocket = serverSocket;
-		pool = Executors.newFixedThreadPool(10);
+		pool = Executors.newFixedThreadPool(50);
 	}
 	
 	@Override
@@ -67,14 +67,14 @@ public class ProxyOverseer implements Runnable
 					} 
 					catch (IOException e)
 					{
-						e.printStackTrace();
+						System.err.println("Error closing Client Socket");
 					}
 				}
 				return;
 			}
 			catch (IOException e)
 			{
-				e.printStackTrace();
+				System.err.println("Error threadpool shutdown");
 			}
 		}
 	}
@@ -108,7 +108,7 @@ public class ProxyOverseer implements Runnable
 		} 
 		catch (IOException e)
 		{
-			e.printStackTrace();
+			System.err.println("Error creating new Fileserver Listener");
 		}
 	}
 }

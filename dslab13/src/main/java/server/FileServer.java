@@ -57,7 +57,7 @@ public class FileServer implements IFileServer, Runnable
 		} 
 		catch (IOException e)
 		{
-			e.printStackTrace();
+			System.err.println("Error creating new Outpustream for Fileserver");
 		}  
 	}
 
@@ -110,10 +110,7 @@ public class FileServer implements IFileServer, Runnable
 					{
 						return (MessageResponse)objectInput.readObject();
 					} 
-					catch (ClassNotFoundException e)
-					{
-						e.printStackTrace();
-					}
+					catch (ClassNotFoundException e) {}
 				} 
 				finally 
 				{
@@ -272,12 +269,11 @@ public class FileServer implements IFileServer, Runnable
 			}
 			catch (IOException e)
 			{
-				e.printStackTrace();
+				System.err.println("Error handling with Requests from Proxy");
 				return;
 			} 
 			catch (ClassNotFoundException e)
 			{
-				e.printStackTrace();
 				return;
 			}
 		}
@@ -293,7 +289,7 @@ public class FileServer implements IFileServer, Runnable
 		} 
 		catch (IOException e)
 		{
-			e.printStackTrace();
+			System.err.println("Error closing Streams and the socket connection");
 		}
 	}
 }

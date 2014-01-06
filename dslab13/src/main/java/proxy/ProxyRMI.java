@@ -175,9 +175,7 @@ public class ProxyRMI implements IProxyRMI {
 									return list();
 								}
 							}
-						} catch (ClassNotFoundException e) {
-							e.printStackTrace();
-						}
+						} catch (ClassNotFoundException e) {}
 					}
 				}
 				return files;

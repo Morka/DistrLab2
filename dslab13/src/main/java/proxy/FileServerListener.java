@@ -94,7 +94,7 @@ public class FileServerListener implements Runnable
 				} catch (SocketException se) {
 					return;
 				} catch (IOException e) {
-					e.printStackTrace();
+					System.err.println("Error Receive Package from Fileserver");
 				}
 			}	
 			

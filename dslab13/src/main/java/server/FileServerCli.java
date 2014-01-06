@@ -33,7 +33,7 @@ public class FileServerCli implements IFileServerCli
 		} 
 		catch (IOException e)
 		{
-			e.printStackTrace();
+			System.err.println("Error creating new Server Socket");
 		}
 		overseer = new FileServerOverseer(config, serverSocket, datagramSocket, stop);
 		t = new Thread(overseer);

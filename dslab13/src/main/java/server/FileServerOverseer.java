@@ -51,7 +51,7 @@ public class FileServerOverseer implements Runnable
 			}
 			catch (IOException e)
 			{
-				e.printStackTrace();
+				System.err.println("Error threadpool shutdown");
 			}
 		}
 	}
@@ -76,7 +76,7 @@ public class FileServerOverseer implements Runnable
 		} 
 		catch (IOException e)
 		{
-			e.printStackTrace();
+			System.err.println("Error creating Datagram Socket");
 		}
 	}
 }
