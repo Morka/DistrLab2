@@ -59,7 +59,7 @@ public class LoginHandler {
 		
 		
 		
-		this.usernameDecoded = new String(base64Channel.decode(username)); //TODO: ATTENTION! is new String applicable here??
+		this.usernameDecoded = new String(base64Channel.decode(username)); 
 		
 		assert this.usernameDecoded.matches("["+B64+"]{1,24}");
 		

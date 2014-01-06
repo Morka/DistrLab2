@@ -27,9 +27,7 @@ public class LoginHandshake {
 		this.base64Channel = new Base64Channel();
 		this.privateKey = privateKey;
 	}
-	
-	//TODO: does it make sense to assert the overall request
-	
+		
 	public LoginRequestHandshake startHandshake(String username) {
 
 		byte[] encodedUsername = this.base64Channel.encode(username.getBytes()); // encoded

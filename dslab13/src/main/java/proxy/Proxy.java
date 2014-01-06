@@ -59,7 +59,6 @@ import model.DownloadTicket;
 import model.FileServerInfo;
 import model.UserInfo;
 
-//TODO: Using the wrong password for the private key of the proxy isn't handled correctly!
 
 public class Proxy implements IProxy, Runnable
 {
@@ -75,6 +74,7 @@ public class Proxy implements IProxy, Runnable
     	private byte[] serverChallenge;
     	private boolean loggedIn;
     	private String tmpUsername;
+        private int stopRecursion;
     	
     	private IProxyRMI proxyRMI;
 
@@ -89,7 +89,7 @@ public class Proxy implements IProxy, Runnable
 
         public Proxy(Socket clientSocket, Config config, AtomicBoolean stop, IProxyRMI proxyRMI)
         {                    	
-
+        		this.stopRecursion = 3;
     			this.base64Channel = new Base64Channel();
         		hMac = new HmacHelper(config);
                 this.users = UserData.getInstance().users;        
@@ -177,11 +177,15 @@ public class Proxy implements IProxy, Runnable
                 {
                         synchronized(users)
                         {
+                        	if(credits.getCredits() >= 0){
                                 Long newCredits = users.get(username).getCredits() + credits.getCredits();
                                 UserInfo old = users.get(username);
                                 UserInfo info = new UserInfo(username, newCredits, old.isOnline());
                                 users.put(username, info);
                                 return new BuyResponse(newCredits);
+                        	}else{
+                        		return new MessageResponse("Must be >= 0");
+                        	}
                         }
                 }
         }
@@ -247,7 +251,7 @@ public class Proxy implements IProxy, Runnable
                         }
                 }
         }
-
+       
         @Override
         public Response download(DownloadTicketRequest request) throws IOException
         {
@@ -288,13 +292,15 @@ public class Proxy implements IProxy, Runnable
                                                         {
                                                                 System.out.println("This message has been tampered with: " + response.toString());
                                                         }
-                                                        if(response.toString().equals("!again"))
+                                                        if(response.toString().equals("!again") && this.stopRecursion >= 0)
                                                         {
-                                                                return download(request); // TODO check for endless
+                                                        		this.stopRecursion -= 1;
+                                                                return download(request);
                                                         }
                                                 }
                                                 else
                                                 {
+                                                		this.stopRecursion = 3;
                                                         InfoResponse inforesponse = (InfoResponse)response;
                                                         if(!hMac.verifyHash(inforesponse.gethMac(), inforesponse.toString()))
                                                         {
@@ -510,7 +516,7 @@ public class Proxy implements IProxy, Runnable
     				users.put(username, info);
     				this.loggedIn = false;
     				this.aesChannel = null;
-    				this.proxyRMI.unsubscribe();
+    				//this.proxyRMI.unsubscribe();
     				this.username = "";
     				return new MessageResponse("Successfully logged out");
     			}
@@ -577,19 +583,17 @@ public class Proxy implements IProxy, Runnable
     						return new LoginResponse(Type.SUCCESS);
 
     					}else{
-    						System.err.println("Not Logged In 1");
-    						//TODO: If this fails, the server tries to send it without aes encryption altough the client waits for such an encrpytion... therefore the client breaks down.
+    						System.err.println("Not Logged In");
     						return new LoginResponse(Type.WRONG_CREDENTIALS);
     					}
     				}
     			}else{
-    				System.err.println("Not Logged In 2");
+    				System.err.println("Not Logged In");
     				return new LoginResponse(Type.WRONG_CREDENTIALS);
     			}
     		}
     		else{
-    			System.err.println("Not Logged In 3");
-    			//TODO: If this fails, the server tries to send it without aes encryption altough the client waits for such an encrpytion... therefore the client breaks down.
+    			System.err.println("Not Logged In");
     			return new LoginResponse(Type.WRONG_CREDENTIALS);
     		}
     	}
@@ -608,8 +612,7 @@ public class Proxy implements IProxy, Runnable
             						this.sendResponse(response);
             									
                                 } else if (message instanceof LoginRequestFinalHandshake) {
-            					//TODO: log in the user at the proxy machine.
-            					this.sendResponse(this.checkIfChallengeIsOkay(message));
+                                	this.sendResponse(this.checkIfChallengeIsOkay(message));
                                 }
             					else if (message instanceof CreditsRequest)
                                 {

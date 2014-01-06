@@ -333,8 +333,6 @@ public class ClientCli implements IClientCli {
 			privateKey = keyPair.getPrivate();
 			in.close();
 		} catch (IOException ex) {
-			// TODO: at the moment a restart is needed in case of an
-			// IOException. fix!
 			throw new PrivateKeyException(
 					"ERROR: reading Private Key - most likely wrong password");
 		}
